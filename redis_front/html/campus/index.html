@@ -1,0 +1,1434 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>&#x9F50;&#x9C81;&#x6821;&#x56ED;&#x670D;&#x52A1;&#x5DE5;&#x4F5C;&#x53F0;</title>
+  <script>
+    (function () {
+      try {
+        var theme = localStorage.getItem("campus-theme");
+        document.documentElement.setAttribute("data-theme", theme === "dark" ? "dark" : "light");
+      } catch (error) {
+        document.documentElement.setAttribute("data-theme", "light");
+      }
+    }());
+  </script>
+  <link rel="stylesheet" href="./css/campus.css?v=20260710-ai-trace-langgraph-panel">
+</head>
+<body>
+<div id="app" class="app-shell" v-cloak @click="closeAiSessionMenu">
+  <aside class="sidebar" aria-label="&#x4E3B;&#x5BFC;&#x822A;">
+    <div class="brand">
+      <span class="brand-mark" aria-hidden="true">QL</span>
+      <span>
+        <strong>&#x9F50;&#x9C81;&#x6821;&#x56ED;&#x670D;&#x52A1;</strong>
+        <small>&#x4E00;&#x7AD9;&#x5F0F;&#x670D;&#x52A1;&#x5DE5;&#x4F5C;&#x53F0;</small>
+      </span>
+    </div>
+    <nav class="nav-list">
+      <button
+        v-for="item in visibleNavItems"
+        :key="item.key"
+        class="nav-button"
+        :class="{active: activeView === item.key}"
+        type="button"
+        @click="setView(item.key)"
+      >
+        <span class="nav-icon" aria-hidden="true">{{ item.icon }}</span>
+        <span>{{ item.label }}</span>
+      </button>
+    </nav>
+  </aside>
+
+  <main class="main">
+    <header class="topbar">
+      <section class="page-heading" aria-labelledby="page-title">
+        <p class="eyebrow">&#x6821;&#x56ED;&#x670D;&#x52A1;&#x5DE5;&#x4F5C;&#x53F0;</p>
+        <h1 id="page-title">{{ currentTitle }}</h1>
+        <p>{{ currentNote }}</p>
+      </section>
+      <section class="account-panel" aria-label="&#x5F53;&#x524D;&#x8D26;&#x53F7;">
+        <div class="account-header">
+          <button
+            class="theme-toggle"
+            :class="{active: isDarkMode}"
+            type="button"
+            :aria-pressed="isDarkMode ? 'true' : 'false'"
+            :aria-label="themeToggleTitle"
+            :title="themeToggleTitle"
+            @click="toggleTheme"
+          >
+            <span class="theme-toggle-track" aria-hidden="true"><span class="theme-toggle-knob"></span></span>
+            <span>{{ themeToggleText }}</span>
+          </button>
+        </div>
+        <div class="account-control">
+          <span class="account-name">{{ currentUser ? currentUser.nickName : "&#x52A0;&#x8F7D;&#x4E2D;" }}</span>
+          <span class="badge" v-if="currentUser && currentUser.role">{{ roleText(currentUser.role) }}</span>
+          <button class="button secondary" type="button" :disabled="isSubmitting('logout')" @click="logout">&#x9000;&#x51FA;</button>
+        </div>
+      </section>
+    </header>
+
+    <status-banner :message="message" :type="messageType" :busy="loading"></status-banner>
+
+    <section v-if="activeView === 'service'" class="content-grid" aria-label="&#x670D;&#x52A1;&#x7F51;&#x70B9;">
+      <section-panel span="span-4" title="&#x7B5B;&#x9009;&#x6761;&#x4EF6;" eyebrow="&#x7B5B;&#x9009;">
+        <empty-state v-if="panelError('categories')" title="&#x5206;&#x7C7B;&#x52A0;&#x8F7D;&#x5931;&#x8D25;" :description="panelError('categories')" action-text="&#x91CD;&#x8BD5;" @action="loadCategories"></empty-state>
+        <div v-else>
+          <div class="field">
+            <label>&#x670D;&#x52A1;&#x5206;&#x7C7B;</label>
+            <select v-model="selectedCategoryId" :disabled="isLoading('categories')">
+              <option value="">&#x5168;&#x90E8;&#x5206;&#x7C7B;</option>
+              <option v-for="category in categories" :key="category.id" :value="category.id">
+                {{ category.name }}
+              </option>
+            </select>
+          </div>
+          <div class="toolbar">
+            <button class="button" type="button" :disabled="isLoading('servicePoints')" @click="loadServicePoints">&#x52A0;&#x8F7D;&#x670D;&#x52A1;&#x7F51;&#x70B9;</button>
+            <button class="button secondary" type="button" :disabled="isLoading('categories')" @click="loadCategories">&#x5237;&#x65B0;&#x5206;&#x7C7B;</button>
+          </div>
+        </div>
+      </section-panel>
+
+      <section-panel span="span-8" title="&#x670D;&#x52A1;&#x7F51;&#x70B9;" :meta="servicePointPage.total + ' &#x4E2A;&#x7F51;&#x70B9;'">
+        <skeleton-list v-if="isLoading('servicePoints')" :rows="3"></skeleton-list>
+        <empty-state v-else-if="panelError('servicePoints')" title="&#x52A0;&#x8F7D;&#x5931;&#x8D25;" :description="panelError('servicePoints')" action-text="&#x91CD;&#x8BD5;" @action="loadServicePoints"></empty-state>
+        <empty-state v-else-if="servicePoints.length === 0" title="&#x6682;&#x65E0;&#x670D;&#x52A1;&#x7F51;&#x70B9;" description="&#x8BF7;&#x5207;&#x6362;&#x5206;&#x7C7B;&#x6216;&#x5237;&#x65B0;&#x6570;&#x636E;&#x3002;"></empty-state>
+        <div v-else class="list">
+          <service-point-card
+            v-for="point in servicePoints"
+            :key="point.id"
+            :point="point"
+            :selected="selectedPoint && selectedPoint.id === point.id"
+            show-board
+            @select="selectPoint"
+            @board="openBoard"
+            @reserve="reservePoint"
+          ></service-point-card>
+        </div>
+        <pager-control v-if="servicePointPage.total > servicePointPage.size" :page="servicePointPage" :disabled="isLoading('servicePoints')" @change="changePage(servicePointPage, $event, loadServicePoints)"></pager-control>
+      </section-panel>
+    </section>
+
+    <section v-if="activeView === 'board'" class="content-grid" aria-label="&#x7F51;&#x70B9;&#x7559;&#x8A00;&#x677F;">
+      <section-panel span="span-4" title="&#x7F51;&#x70B9;&#x4FE1;&#x606F;" eyebrow="&#x7559;&#x8A00;&#x677F;">
+        <empty-state v-if="!selectedPoint" title="&#x8BF7;&#x5148;&#x9009;&#x62E9;&#x7F51;&#x70B9;" description="&#x5728;&#x670D;&#x52A1;&#x7F51;&#x70B9;&#x9875;&#x9762;&#x70B9;&#x51FB;&#x7559;&#x8A00;&#x677F;&#x8FDB;&#x5165;&#x3002;" action-text="&#x8FD4;&#x56DE;&#x7F51;&#x70B9;" @action="setView('service')"></empty-state>
+        <div v-else>
+          <service-point-card :point="selectedPoint" selected compact :show-reserve="false" @select="setView('service')"></service-point-card>
+          <div class="divider"></div>
+          <div class="toolbar board-sort" role="tablist" aria-label="&#x7559;&#x8A00;&#x7B5B;&#x9009;">
+            <button
+              v-for="item in commentSortOptions"
+              :key="item.key"
+              class="button secondary"
+              :class="{active: commentSort === item.key}"
+              type="button"
+              :disabled="isLoading('comments')"
+              @click="changeCommentSort(item.key)"
+            >{{ item.label }}</button>
+          </div>
+          <div class="field">
+            <label>&#x53D1;&#x5E03;&#x4E3B;&#x5E16; <span>&#x5FC5;&#x586B;</span></label>
+            <textarea v-model.trim="commentForm.content" maxlength="1024"></textarea>
+            <small class="field-counter">{{ commentForm.content.length }}/1024</small>
+          </div>
+          <button class="button full-width" type="button" :disabled="isSubmitting('comment:create')" @click="createFloorComment">
+            {{ isSubmitting('comment:create') ? '\u53d1\u5e03\u4e2d' : '\u53d1\u5e03\u7559\u8a00' }}
+          </button>
+        </div>
+      </section-panel>
+
+      <section-panel span="span-8" title="&#x4E92;&#x52A8;&#x7559;&#x8A00;" :meta="comments.length + ' &#x6761;'">
+        <template slot="actions">
+          <button class="button secondary" type="button" :disabled="isLoading('comments') || !selectedPoint" @click="loadComments(true)">&#x5237;&#x65B0;</button>
+        </template>
+        <skeleton-list v-if="isLoading('comments')" :rows="3"></skeleton-list>
+        <empty-state v-else-if="panelError('comments')" title="&#x7559;&#x8A00;&#x52A0;&#x8F7D;&#x5931;&#x8D25;" :description="panelError('comments')" action-text="&#x91CD;&#x8BD5;" @action="loadComments(true)"></empty-state>
+        <empty-state v-else-if="comments.length === 0" title="&#x6682;&#x65E0;&#x7559;&#x8A00;" description="&#x53D1;&#x5E03;&#x7B2C;&#x4E00;&#x6761;&#x4E3B;&#x5E16;&#x540E;&#x4F1A;&#x5728;&#x8FD9;&#x91CC;&#x5C55;&#x793A;&#x3002;"></empty-state>
+        <div v-else class="list station-comment-list">
+          <article v-for="comment in comments" :key="comment.id" class="data-card comment-card">
+            <header class="card-header">
+              <div>
+                <h3>{{ comment.floorNo ? '#' + comment.floorNo + ' \u697c' : '\u7ba1\u7406\u5458\u7559\u8a00' }}</h3>
+                <p>{{ comment.userName || ('\u7528\u6237 ' + comment.userId) }} / {{ roleText(comment.userType) }} / {{ formatTime(comment.createTime) }}</p>
+              </div>
+              <button
+                class="comment-like-button"
+                :class="{active: comment.liked}"
+                type="button"
+                :disabled="isSubmitting('comment:' + comment.id + ':like')"
+                :aria-label="'\u70b9\u8d5e\uff1a' + (comment.likeCount || 0)"
+                @click="likeComment(comment)"
+              >
+                <span aria-hidden="true">&#x1F44D;</span>
+                <strong>{{ comment.likeCount || 0 }}</strong>
+              </button>
+            </header>
+            <p v-if="comment.replyToCommentId" class="reply-context">{{ comment.userName || 'A' }} &#x56DE;&#x590D; {{ comment.replyToUserName || 'B' }}&#xFF1A;{{ comment.replyToContent || '-' }}</p>
+            <p
+              class="card-description comment-content"
+              role="button"
+              tabindex="0"
+              @click="openReplyDialog(comment, comment)"
+              @keyup.enter="openReplyDialog(comment, comment)"
+              @keyup.space.prevent="openReplyDialog(comment, comment)"
+            >{{ comment.content }}</p>
+            <footer class="card-actions">
+              <span class="badge">{{ comment.replyCount || 0 }} &#x56DE;&#x590D;</span>
+              <button v-if="canDeleteComments()" class="button danger" type="button" :disabled="isSubmitting('comment:' + comment.id + ':delete')" @click="deleteComment(comment)">&#x5220;&#x9664;</button>
+            </footer>
+
+            <section v-if="isRootComment(comment)" class="reply-box">
+              <div v-if="replyState(comment.id).list.length > 0" class="reply-list">
+                <article v-for="reply in replyState(comment.id).list" :key="reply.id" class="reply-item">
+                  <button
+                    class="comment-like-button reply-like-button"
+                    :class="{active: reply.liked}"
+                    type="button"
+                    :disabled="isSubmitting('comment:' + reply.id + ':like')"
+                    :aria-label="'\u70b9\u8d5e\uff1a' + (reply.likeCount || 0)"
+                    @click="likeComment(reply)"
+                  >
+                    <span aria-hidden="true">&#x1F44D;</span>
+                    <strong>{{ reply.likeCount || 0 }}</strong>
+                  </button>
+                  <p
+                    class="reply-content"
+                    role="button"
+                    tabindex="0"
+                    @click="openReplyDialog(comment, reply)"
+                    @keyup.enter="openReplyDialog(comment, reply)"
+                    @keyup.space.prevent="openReplyDialog(comment, reply)"
+                  ><strong>{{ reply.userName || ('\u7528\u6237 ' + reply.userId) }}</strong> &#x56DE;&#x590D; <strong>{{ reply.replyToUserName || '-' }}</strong>&#xFF1A;{{ reply.content }}</p>
+                  <small>{{ formatTime(reply.createTime) }}</small>
+                  <button v-if="canDeleteComments()" class="button danger" type="button" :disabled="isSubmitting('comment:' + reply.id + ':delete')" @click="deleteComment(reply)">&#x5220;&#x9664;</button>
+                </article>
+              </div>
+              <button v-if="replyState(comment.id).hasMore" class="button secondary" type="button" :disabled="isReplyLoading(comment.id)" @click="loadReplies(comment.id, false)">&#x52A0;&#x8F7D;&#x66F4;&#x591A;&#x56DE;&#x590D;</button>
+            </section>
+          </article>
+        </div>
+        <button v-if="commentPage.hasMore" class="button full-width load-more" type="button" :disabled="isLoading('commentsMore')" @click="loadComments(false)">&#x52A0;&#x8F7D;&#x66F4;&#x591A;</button>
+      </section-panel>
+    </section>
+
+    <section v-if="activeView === 'appointment'" class="content-grid" aria-label="&#x9884;&#x7EA6;&#x529E;&#x7406;">
+      <section-panel span="span-5" title="&#x5F53;&#x524D;&#x7F51;&#x70B9;" eyebrow="&#x5DF2;&#x9009;&#x7F51;&#x70B9;">
+        <empty-state v-if="!selectedPoint" title="&#x8BF7;&#x5148;&#x9009;&#x62E9;&#x7F51;&#x70B9;" description="&#x5728;&#x670D;&#x52A1;&#x7F51;&#x70B9;&#x9875;&#x9762;&#x9009;&#x62E9;&#x540E;&#x53EF;&#x9884;&#x7EA6;&#x3002;"></empty-state>
+        <service-point-card v-else :point="selectedPoint" selected compact reserve-text="&#x5237;&#x65B0;&#x65F6;&#x6BB5;" @select="selectPoint" @reserve="loadSlots(selectedPoint.id)"></service-point-card>
+      </section-panel>
+
+      <section-panel span="span-7" title="&#x53EF;&#x9884;&#x7EA6;&#x65F6;&#x6BB5;" :meta="slots.length + ' &#x4E2A;&#x65F6;&#x6BB5;'">
+        <skeleton-list v-if="isLoading('slots')" :rows="2"></skeleton-list>
+        <empty-state v-else-if="panelError('slots')" title="&#x65F6;&#x6BB5;&#x52A0;&#x8F7D;&#x5931;&#x8D25;" :description="panelError('slots')" action-text="&#x91CD;&#x8BD5;" @action="selectedPoint && loadSlots(selectedPoint.id)"></empty-state>
+        <empty-state v-else-if="slots.length === 0" title="&#x6682;&#x65E0;&#x53EF;&#x9884;&#x7EA6;&#x65F6;&#x6BB5;" description="&#x8BF7;&#x5237;&#x65B0;&#x6216;&#x66F4;&#x6362;&#x670D;&#x52A1;&#x7F51;&#x70B9;&#x3002;"></empty-state>
+        <div v-else class="list">
+          <slot-card
+            v-for="slot in slots"
+            :key="slot.id"
+            :slot="slot"
+            :busy="isSubmitting('reserve:' + slot.id)"
+            :format-time="formatTime"
+            @reserve="reserveSlot"
+          ></slot-card>
+        </div>
+      </section-panel>
+
+      <section-panel span="span-12" title="&#x6211;&#x7684;&#x9884;&#x7EA6;&#x8BB0;&#x5F55;" :meta="filteredMyOrders.length + ' / ' + myOrders.length + ' &#x6761;'">
+        <template slot="actions">
+          <select v-model="appointmentOrderFilter" class="compact-select">
+            <option value="">&#x5168;&#x90E8;</option>
+            <option value="1">&#x5DF2;&#x9884;&#x7EA6;</option>
+            <option value="2">&#x5DF2;&#x53D6;&#x6D88;</option>
+            <option value="3">&#x5DF2;&#x5B8C;&#x6210;</option>
+            <option value="4">&#x5DF2;&#x8FC7;&#x671F;</option>
+            <option value="5">&#x723D;&#x7EA6;</option>
+          </select>
+          <button class="button secondary" type="button" :disabled="isLoading('myOrders')" @click="loadMyOrders">&#x5237;&#x65B0;</button>
+        </template>
+        <div class="appointment-summary-strip">
+          <article class="appointment-summary-card primary"><span>&#x5168;&#x90E8;</span><strong>{{ appointmentOrderStats.total }}</strong></article>
+          <article class="appointment-summary-card"><span>&#x5DF2;&#x9884;&#x7EA6;</span><strong>{{ appointmentOrderStats.reserved }}</strong></article>
+          <article class="appointment-summary-card"><span>&#x5DF2;&#x5B8C;&#x6210;</span><strong>{{ appointmentOrderStats.finished }}</strong></article>
+          <article class="appointment-summary-card"><span>&#x5176;&#x4ED6;</span><strong>{{ appointmentOrderStats.abnormal }}</strong></article>
+        </div>
+        <skeleton-list v-if="isLoading('myOrders')" :rows="2"></skeleton-list>
+        <empty-state v-else-if="panelError('myOrders')" title="&#x9884;&#x7EA6;&#x8BB0;&#x5F55;&#x52A0;&#x8F7D;&#x5931;&#x8D25;" :description="panelError('myOrders')" action-text="&#x91CD;&#x8BD5;" @action="loadMyOrders"></empty-state>
+        <orders-table v-else :orders="filteredMyOrders" :format-time="formatTime" :status-text="appointmentOrderStatus" :busy-action="appointmentAction" :selected-order-id="selectedAppointmentOrderId" @cancel="cancelAppointmentOrder" @delete-order="deleteMyAppointmentOrder"></orders-table>
+      </section-panel>
+    </section>
+
+    <section v-if="activeView === 'inbox'" class="content-grid" aria-label="&#x7AD9;&#x5185;&#x6536;&#x4EF6;&#x7BB1;">
+      <section-panel span="span-4" title="&#x6D88;&#x606F;&#x7B5B;&#x9009;" eyebrow="&#x6536;&#x4EF6;&#x7BB1;">
+        <div class="inbox-count-strip">
+          <article class="inbox-count-card primary">
+            <span>&#x672A;&#x8BFB;</span>
+            <strong>{{ inboxUnreadCounts.total || 0 }}</strong>
+          </article>
+          <article v-for="item in inboxTypeOptions.slice(1)" :key="item.value" class="inbox-count-card">
+            <span>{{ item.label }}</span>
+            <strong>{{ inboxUnreadCounts.typeCounts && inboxUnreadCounts.typeCounts[item.value] || 0 }}</strong>
+          </article>
+        </div>
+        <div class="field">
+          <label>&#x6D88;&#x606F;&#x7C7B;&#x578B;</label>
+          <select v-model="inboxQuery.messageType">
+            <option v-for="item in inboxTypeOptions" :key="item.value" :value="item.value">{{ item.label }}</option>
+          </select>
+        </div>
+        <div class="field-row">
+          <div class="field">
+            <label>&#x8BFB;&#x53D6;&#x72B6;&#x6001;</label>
+            <select v-model="inboxQuery.readStatus">
+              <option value="">&#x5168;&#x90E8;</option>
+              <option value="0">&#x672A;&#x8BFB;</option>
+              <option value="1">&#x5DF2;&#x8BFB;</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>&#x6807;&#x661F;</label>
+            <select v-model="inboxQuery.starStatus">
+              <option value="">&#x5168;&#x90E8;</option>
+              <option value="1">&#x5DF2;&#x6807;&#x661F;</option>
+              <option value="0">&#x672A;&#x6807;&#x661F;</option>
+            </select>
+          </div>
+        </div>
+        <div class="field-row">
+          <div class="field">
+            <label>&#x6708;&#x4EFD;</label>
+            <input v-model.trim="inboxQuery.monthKey" maxlength="6" placeholder="202607">
+          </div>
+          <div class="field">
+            <label>&#x6BCF;&#x9875;</label>
+            <select v-model.number="inboxQuery.pageSize">
+              <option :value="10">10</option>
+              <option :value="20">20</option>
+              <option :value="50">50</option>
+            </select>
+          </div>
+        </div>
+        <div class="toolbar">
+          <button class="button" type="button" :disabled="isLoading('inboxMessages')" @click="loadInboxMessages(true)">&#x67E5;&#x8BE2;</button>
+          <button class="button secondary" type="button" :disabled="isLoading('inboxUnreadCounts')" @click="loadInboxUnreadCounts">&#x5237;&#x65B0;&#x8BA1;&#x6570;</button>
+        </div>
+        <div class="divider"></div>
+        <dl class="inbox-socket-status">
+          <div><dt>WebSocket</dt><dd>{{ inboxSocketState }}</dd></div>
+        </dl>
+      </section-panel>
+
+      <section-panel span="span-8" title="&#x6D88;&#x606F;&#x5217;&#x8868;" :meta="selectedInboxIds.length + ' &#x6761;&#x5DF2;&#x9009;'">
+        <template slot="actions">
+          <button class="button secondary" type="button" :disabled="selectedInboxIds.length === 0 || isSubmitting('inbox:read')" @click="runInboxAction('read', '&#x5DF2;&#x6807;&#x8BB0;&#x4E3A;&#x5DF2;&#x8BFB;&#x3002;')">&#x5DF2;&#x8BFB;</button>
+          <button class="button secondary" type="button" :disabled="(inboxUnreadCounts.total || 0) === 0 || isSubmitting('inbox:readAll')" @click="markAllInboxRead">{{ isSubmitting('inbox:readAll') ? '&#x5904;&#x7406;&#x4E2D;' : '&#x4E00;&#x952E;&#x5DF2;&#x8BFB;' }}</button>
+          <button class="button secondary" type="button" :disabled="selectedInboxIds.length === 0 || isSubmitting('inbox:star')" @click="runInboxAction('star', '&#x5DF2;&#x6807;&#x661F;&#x3002;')">&#x6807;&#x661F;</button>
+          <button class="button secondary" type="button" :disabled="selectedInboxIds.length === 0 || isSubmitting('inbox:unstar')" @click="runInboxAction('unstar', '&#x5DF2;&#x53D6;&#x6D88;&#x6807;&#x661F;&#x3002;')">&#x53D6;&#x6D88;&#x6807;&#x661F;</button>
+          <button class="button danger" type="button" :disabled="selectedInboxIds.length === 0 || isSubmitting('inbox:delete')" @click="runInboxAction('delete', '&#x6D88;&#x606F;&#x5DF2;&#x5220;&#x9664;&#x3002;')">&#x5220;&#x9664;</button>
+        </template>
+        <skeleton-list v-if="isLoading('inboxMessages')" :rows="3"></skeleton-list>
+        <empty-state v-else-if="panelError('inboxMessages')" title="&#x6D88;&#x606F;&#x52A0;&#x8F7D;&#x5931;&#x8D25;" :description="panelError('inboxMessages')" action-text="&#x91CD;&#x8BD5;" @action="loadInboxMessages(true)"></empty-state>
+        <empty-state v-else-if="inboxMessages.length === 0" title="&#x6682;&#x65E0;&#x6D88;&#x606F;" description="&#x6709;&#x65B0;&#x516C;&#x544A;&#x6216;&#x4E1A;&#x52A1;&#x63D0;&#x9192;&#x65F6;&#x4F1A;&#x5728;&#x8FD9;&#x91CC;&#x663E;&#x793A;&#x3002;"></empty-state>
+        <div v-else class="list inbox-message-list">
+          <article
+            v-for="item in inboxMessages"
+            :key="item.messageId"
+            class="data-card inbox-message-card"
+            :class="{selected: selectedInboxMessage && selectedInboxMessage.messageId === item.messageId, unread: Number(item.readStatus) === 0}"
+            tabindex="0"
+            role="button"
+            @click="openInboxMessage(item)"
+            @keyup.enter="openInboxMessage(item)"
+          >
+            <header class="card-header inbox-row-head">
+              <div class="inbox-title-line">
+                <input type="checkbox" :checked="isInboxSelected(item)" @click.stop @change.stop="toggleInboxSelection(item)" :aria-label="'选择消息：' + item.title">
+                <div>
+                  <h3><span v-if="Number(item.readStatus) === 0" class="unread-dot" aria-label="&#x672A;&#x8BFB;"></span>{{ item.title }}</h3>
+                  <p>{{ inboxTypeText(item.messageType) }} / {{ formatTime(item.createTime) }}</p>
+                </div>
+              </div>
+              <div class="inbox-badges">
+                <span class="badge" v-if="Number(item.starStatus) === 1">&#x6807;&#x661F;</span>
+              </div>
+            </header>
+            <p class="card-description">{{ inboxDisplaySummary(item) }}</p>
+          </article>
+        </div>
+        <button v-if="inboxPage.hasMore" class="button full-width load-more" type="button" :disabled="isLoading('inboxMore')" @click="loadInboxMessages(false)">&#x52A0;&#x8F7D;&#x66F4;&#x591A;</button>
+      </section-panel>
+
+      <section-panel span="span-12" title="&#x6D88;&#x606F;&#x8BE6;&#x60C5;" eyebrow="&#x9605;&#x8BFB;">
+        <empty-state v-if="!selectedInboxMessage" title="&#x8BF7;&#x9009;&#x62E9;&#x6D88;&#x606F;" description="&#x70B9;&#x51FB;&#x5217;&#x8868;&#x4E2D;&#x7684;&#x6D88;&#x606F;&#x540E;&#xFF0C;&#x8BE6;&#x60C5;&#x4F1A;&#x663E;&#x793A;&#x5728;&#x8FD9;&#x91CC;&#x3002;"></empty-state>
+        <article v-else class="inbox-detail-view">
+          <header class="ticket-detail-head">
+            <div>
+              <h3>{{ selectedInboxMessage.title }}</h3>
+              <p>{{ inboxTypeText(selectedInboxMessage.messageType) }} / {{ formatTime(selectedInboxMessage.createTime) }}</p>
+            </div>
+            <span class="badge success">{{ inboxReadText(selectedInboxMessage.readStatus) }}</span>
+          </header>
+          <section class="ticket-section">
+            <h3>&#x5185;&#x5BB9;</h3>
+            <p>{{ inboxDisplayContent(selectedInboxMessage) }}</p>
+          </section>
+          <section class="ticket-section" v-if="inboxHasAppointmentLink(selectedInboxMessage)">
+            <h3>&#x5173;&#x8054;&#x9884;&#x7EA6;</h3>
+            <dl v-if="selectedInboxAppointmentOrder" class="ticket-detail-grid">
+              <div><dt>&#x9884;&#x7EA6;&#x8BA2;&#x5355;</dt><dd>{{ selectedInboxAppointmentOrder.id }}</dd></div>
+              <div><dt>&#x72B6;&#x6001;</dt><dd>{{ appointmentOrderStatus(selectedInboxAppointmentOrder) }}</dd></div>
+              <div><dt>&#x9884;&#x7EA6;&#x65F6;&#x6BB5;</dt><dd>{{ selectedInboxAppointmentOrder.slotTitle || selectedInboxAppointmentOrder.slotId }}</dd></div>
+              <div><dt>&#x670D;&#x52A1;&#x70B9;</dt><dd>{{ selectedInboxAppointmentOrder.servicePointName || selectedInboxAppointmentOrder.servicePointId || '-' }}</dd></div>
+              <div><dt>&#x5F00;&#x59CB;&#x65F6;&#x95F4;</dt><dd>{{ formatTime(selectedInboxAppointmentOrder.startTime) }}</dd></div>
+              <div><dt>&#x7ED3;&#x675F;&#x65F6;&#x95F4;</dt><dd>{{ formatTime(selectedInboxAppointmentOrder.endTime) }}</dd></div>
+              <div><dt>&#x5907;&#x6CE8;</dt><dd>{{ inboxAppointmentRemark(selectedInboxAppointmentOrder) }}</dd></div>
+            </dl>
+            <p v-else>&#x6B63;&#x5728;&#x52A0;&#x8F7D;&#x9884;&#x7EA6;&#x8BB0;&#x5F55;&#x3002;</p>
+          </section>
+          <div class="toolbar" v-if="inboxHasTicketLink(selectedInboxMessage)">
+            <button class="button secondary" type="button" :disabled="isLoading('adminTicketDetail')" @click="openInboxTicket(selectedInboxMessage, false)">&#x67E5;&#x770B;&#x5173;&#x8054;&#x5DE5;&#x5355;</button>
+            <button class="button" type="button" v-if="canAccessAdminView()" :disabled="isLoading('adminTicketDetail')" @click="openInboxTicket(selectedInboxMessage, true)">&#x56DE;&#x590D;&#x5B66;&#x751F;</button>
+          </div>
+          <div class="toolbar" v-if="inboxHasAppointmentLink(selectedInboxMessage)">
+            <button
+              v-for="action in inboxAppointmentActions(selectedInboxMessage, selectedInboxAppointmentOrder)"
+              :key="action.key"
+              :class="'button ' + action.variant"
+              type="button"
+              :disabled="action.disabled"
+              @click="runInboxAppointmentAction(action)"
+            >{{ action.label }}</button>
+          </div>
+        </article>
+      </section-panel>
+    </section>
+
+    <section v-if="activeView === 'ticket'" class="content-grid" aria-label="&#x670D;&#x52A1;&#x5DE5;&#x5355;">
+      <section-panel span="span-5" title="&#x521B;&#x5EFA;&#x5DE5;&#x5355;" eyebrow="&#x65B0;&#x5EFA;&#x8BF7;&#x6C42;">
+        <ticket-form
+          :form="ticketForm"
+          :service-points="ticketServicePoints"
+          :categories="ticketCategories"
+          :busy="isSubmitting('createTicket')"
+          :uploading="ticketUploadingAttachment"
+          :errors="ticketFormErrors"
+          @point-change="handleTicketPointChange"
+          @file-change="handleTicketFileChange"
+          @remove-attachment="clearTicketAttachment"
+          @validate="validateTicketField"
+          @submit="createTicket"
+        ></ticket-form>
+      </section-panel>
+
+      <section-panel span="span-7" title="&#x6211;&#x7684;&#x5DE5;&#x5355;" :meta="myTicketPage.total + ' &#x5F20;&#x5DE5;&#x5355;'">
+        <template slot="actions">
+          <button class="button secondary" type="button" :disabled="isLoading('myTickets')" @click="loadMyTickets">&#x5237;&#x65B0;</button>
+        </template>
+        <skeleton-list v-if="isLoading('myTickets')" :rows="3"></skeleton-list>
+        <empty-state v-else-if="panelError('myTickets')" title="&#x5DE5;&#x5355;&#x52A0;&#x8F7D;&#x5931;&#x8D25;" :description="panelError('myTickets')" action-text="&#x91CD;&#x8BD5;" @action="loadMyTickets"></empty-state>
+        <empty-state v-else-if="myTickets.length === 0" title="&#x6682;&#x65E0;&#x5DE5;&#x5355;" description="&#x65B0;&#x5EFA;&#x5DE5;&#x5355;&#x540E;&#x5C06;&#x5728;&#x6B64;&#x5904;&#x8DDF;&#x8E2A;&#x3002;"></empty-state>
+        <div v-else class="list">
+          <ticket-card v-for="ticket in myTickets" :key="ticket.id" :ticket="ticket" :status-text="ticketStatus(ticket.status)" :busy-action="busyTicketAction(ticket.id)" @detail="viewTicket" @hide="hideMyTicket" @download-attachment="downloadTicketAttachment"></ticket-card>
+        </div>
+        <pager-control v-if="myTicketPage.total > myTicketPage.size" :page="myTicketPage" :disabled="isLoading('myTickets')" @change="changePage(myTicketPage, $event, loadMyTickets)"></pager-control>
+      </section-panel>
+
+      <ticket-detail span="span-12" v-if="selectedTicket" :ticket="selectedTicket" :reply-busy="studentTicketReplyBusy()" :reply-upload-busy="studentTicketReplyUploading" :reply-attachment="studentTicketReplyAttachment" :reply-attachment-error="studentTicketReplyError" :reply-draft="studentTicketReplyDraft" @submit-reply="submitStudentTicketReply" @reply-file-change="handleStudentTicketReplyFileChange" @remove-reply-attachment="clearStudentTicketReplyAttachment" @download-comment-attachment="downloadTicketAttachment"></ticket-detail>
+    </section>
+
+    <section v-if="activeView === 'ai'" class="content-grid" aria-label="&#x667A;&#x80FD;&#x52A9;&#x624B;">
+      <section-panel span="span-5" title="&#x54A8;&#x8BE2;&#x667A;&#x80FD;&#x52A9;&#x624B;" eyebrow="&#x667A;&#x80FD;&#x52A9;&#x624B;">
+        <template slot="actions">
+          <button class="button secondary" type="button" @click="newAiSession">&#x65B0;&#x4F1A;&#x8BDD;</button>
+        </template>
+        <div class="field">
+          <label>&#x95EE;&#x9898;</label>
+          <textarea v-model="aiQuestion"></textarea>
+          <small class="field-counter">{{ aiQuestion.length }}/500</small>
+        </div>
+        <button class="button" type="button" :disabled="isSubmitting('aiQuestion')" @click="sendAiQuestion()">{{ isSubmitting('aiQuestion') ? '&#x53D1;&#x9001;&#x4E2D;' : '&#x53D1;&#x9001;' }}</button>
+        <span class="badge" v-if="aiSessionId">&#x4F1A;&#x8BDD; {{ aiSessionId }}</span>
+        <div class="divider"></div>
+        <div class="toolbar">
+          <strong>&#x6700;&#x8FD1;&#x4F1A;&#x8BDD;</strong>
+          <button class="button secondary" type="button" :disabled="isLoading('aiSessions')" @click="loadAiSessions">&#x5237;&#x65B0;</button>
+          <button class="button danger" type="button" :disabled="aiSessions.length === 0 || isSubmitting('aiSessions:clear')" @click="clearAiSessions">&#x6E05;&#x7A7A;</button>
+        </div>
+        <skeleton-list v-if="isLoading('aiSessions')" :rows="2"></skeleton-list>
+        <empty-state v-else-if="panelError('aiSessions')" title="&#x4F1A;&#x8BDD;&#x52A0;&#x8F7D;&#x5931;&#x8D25;" :description="panelError('aiSessions')" action-text="&#x91CD;&#x8BD5;" @action="loadAiSessions"></empty-state>
+        <empty-state v-else-if="aiSessions.length === 0" title="&#x6682;&#x65E0;&#x4F1A;&#x8BDD;" description="&#x53D1;&#x9001;&#x95EE;&#x9898;&#x540E;&#x4F1A;&#x81EA;&#x52A8;&#x4FDD;&#x5B58;&#x3002;"></empty-state>
+        <div v-else class="list compact-list">
+          <button
+            v-for="session in aiSessions"
+            :key="session.id"
+            class="list-button"
+            :class="{active: aiSessionId === session.id}"
+            type="button"
+            :disabled="isSubmitting('aiSession:' + session.id)"
+            @click="openAiSession(session)"
+            @contextmenu.prevent="openAiSessionMenu($event, session)"
+          >
+            <span><b v-if="Number(session.pinned) === 1">&#x2605;</b>{{ session.title || ('&#x4F1A;&#x8BDD; ' + session.id) }}</span>
+            <small>{{ formatTime(session.updateTime || session.createTime) }}</small>
+          </button>
+        </div>
+        <div
+          v-if="aiSessionMenu.open"
+          class="context-menu"
+          :style="{ left: aiSessionMenu.x + 'px', top: aiSessionMenu.y + 'px' }"
+          @click.stop
+        >
+          <button type="button" @click="toggleAiSessionPinned(aiSessionMenu.session)">
+            {{ aiSessionMenu.session && Number(aiSessionMenu.session.pinned) === 1 ? '&#x53D6;&#x6D88;&#x7F6E;&#x9876;' : '&#x7F6E;&#x9876;' }}
+          </button>
+          <button class="danger" type="button" @click="deleteAiSession(aiSessionMenu.session)">&#x5220;&#x9664;</button>
+        </div>
+      </section-panel>
+
+      <section-panel span="span-7" title="&#x5BF9;&#x8BDD;&#x8BB0;&#x5F55;" :meta="chatMessages.length + ' &#x6761;&#x6D88;&#x606F;'">
+        <empty-state v-if="chatMessages.length === 0" title="&#x5F00;&#x59CB;&#x54A8;&#x8BE2;" description="&#x8F93;&#x5165;&#x95EE;&#x9898;&#x540E;&#x53EF;&#x83B7;&#x5F97;&#x6821;&#x56ED;&#x670D;&#x52A1;&#x5EFA;&#x8BAE;&#x3002;"></empty-state>
+        <div v-else class="chat-box">
+          <chat-message
+            v-for="(msg, index) in chatMessages"
+            :key="index"
+            :message="msg"
+            :can-manage-knowledge="isAdminUser()"
+            @detail="openAiBusinessDetail"
+            @draft-action="handleAiActionDraft"
+            @retry="sendAiQuestion"
+            @open-knowledge="openAiKnowledgeAdmin"
+          ></chat-message>
+        </div>
+      </section-panel>
+    </section>
+
+    <section v-if="activeView === 'admin'" class="content-grid" aria-label="&#x7BA1;&#x7406;&#x540E;&#x53F0;">
+      <section-panel span="span-12" title="&#x7BA1;&#x7406;&#x540E;&#x53F0;" :meta="currentAdminModule.label">
+        <div class="admin-module-grid">
+          <button
+            v-for="module in adminModules"
+            :key="module.key"
+            class="admin-module-button"
+            :class="{active: adminModule === module.key}"
+            type="button"
+            @click="selectAdminModule(module)"
+          >
+            <span>{{ module.label }}</span>
+            <small>{{ module.description }}</small>
+            <strong>{{ adminModuleMeta(module.key) }}</strong>
+          </button>
+        </div>
+      </section-panel>
+
+      <section-panel v-if="adminModule === 'inbox'" span="span-12" title="&#x7AD9;&#x5185;&#x6D88;&#x606F;&#x53D1;&#x9001;" eyebrow="&#x6536;&#x4EF6;&#x7BB1;">
+        <template slot="actions">
+          <span class="panel-meta" v-if="lastInboxSent">&#x6700;&#x8FD1;&#x6D88;&#x606F; {{ lastInboxSent.messageId }}</span>
+          <button class="button secondary" type="button" :disabled="isLoading('inboxRevocableMessages')" @click="openInboxRevokeDialog">&#x64A4;&#x56DE;&#x6307;&#x5B9A;&#x6D88;&#x606F;</button>
+        </template>
+        <form class="inbox-send-form" @submit.prevent="sendInboxMessage">
+          <div class="field-row">
+            <div class="field">
+              <label>&#x6D88;&#x606F;&#x7C7B;&#x578B;</label>
+              <select v-model="inboxSendForm.messageType">
+                <option v-for="item in inboxTypeOptions.slice(1)" :key="item.value" :value="item.value">{{ item.label }}</option>
+              </select>
+            </div>
+            <div class="field">
+              <label>&#x63A8;&#x9001;&#x8303;&#x56F4;</label>
+              <select v-model="inboxSendForm.targetType">
+                <option value="ALL">&#x5168;&#x91CF;&#x7528;&#x6237;</option>
+                <option value="USER">&#x6307;&#x5B9A;&#x7528;&#x6237;</option>
+                <option value="ROLE">&#x6307;&#x5B9A;&#x89D2;&#x8272;</option>
+              </select>
+            </div>
+          </div>
+          <div class="field-row" v-if="inboxSendForm.targetType !== 'ALL'">
+            <div class="field" v-if="inboxSendForm.targetType === 'USER'">
+              <label>&#x7528;&#x6237; ID</label>
+              <input v-model.trim="inboxSendForm.userIdsText" placeholder="1,2,3">
+            </div>
+            <div class="field" v-if="inboxSendForm.targetType === 'ROLE'">
+              <label>&#x89D2;&#x8272;</label>
+              <input v-model.trim="inboxSendForm.rolesText" placeholder="student,manager,admin">
+            </div>
+            <div class="field">
+              <label>&#x8FC7;&#x671F;&#x65F6;&#x95F4;</label>
+              <input v-model="inboxSendForm.expireTime" type="datetime-local">
+            </div>
+          </div>
+          <div class="field-row" v-else>
+            <div class="field">
+              <label>&#x8FC7;&#x671F;&#x65F6;&#x95F4;</label>
+              <input v-model="inboxSendForm.expireTime" type="datetime-local">
+            </div>
+            <div class="field">
+              <label>&#x4E1A;&#x52A1;&#x7C7B;&#x578B;</label>
+              <input v-model.trim="inboxSendForm.businessType" placeholder="SERVICE_POINT">
+            </div>
+          </div>
+          <div class="field-row" v-if="inboxSendForm.targetType !== 'ALL'">
+            <div class="field">
+              <label>&#x4E1A;&#x52A1;&#x7C7B;&#x578B;</label>
+              <input v-model.trim="inboxSendForm.businessType" placeholder="SERVICE_POINT">
+            </div>
+            <div class="field">
+              <label>&#x4E1A;&#x52A1;&#x7F16;&#x53F7;</label>
+              <input v-model.number="inboxSendForm.businessId" type="number" min="1">
+            </div>
+          </div>
+          <div class="field" v-else>
+            <label>&#x4E1A;&#x52A1;&#x7F16;&#x53F7;</label>
+            <input v-model.number="inboxSendForm.businessId" type="number" min="1">
+          </div>
+          <div class="field">
+            <label>&#x6807;&#x9898; <span>&#x5FC5;&#x586B;</span></label>
+            <input v-model.trim="inboxSendForm.title" maxlength="128">
+          </div>
+          <div class="field">
+            <label>&#x6458;&#x8981;</label>
+            <input v-model.trim="inboxSendForm.summary" maxlength="512">
+          </div>
+          <div class="field">
+            <label>&#x5185;&#x5BB9; <span>&#x5FC5;&#x586B;</span></label>
+            <textarea v-model.trim="inboxSendForm.content" maxlength="4096"></textarea>
+            <small class="field-counter">{{ inboxSendForm.content.length }}/4096</small>
+          </div>
+          <button class="button full-width" type="submit" :disabled="isSubmitting('inbox:send')">
+            {{ isSubmitting('inbox:send') ? '&#x53D1;&#x9001;&#x4E2D;' : '&#x53D1;&#x9001;&#x6D88;&#x606F;' }}
+          </button>
+        </form>
+        <div class="divider"></div>
+        <div class="inbox-revoke-form">
+          <button class="button danger full-width" type="button" :disabled="isLoading('inboxRevocableMessages')" @click="openInboxRevokeDialog">
+            {{ isLoading('inboxRevocableMessages') ? '&#x52A0;&#x8F7D;&#x4E2D;' : '&#x64A4;&#x56DE;&#x6307;&#x5B9A;&#x6D88;&#x606F;' }}
+          </button>
+        </div>
+      </section-panel>
+
+      <section-panel v-if="adminModule === 'tickets'" span="span-12" title="&#x5DE5;&#x5355;&#x7BA1;&#x7406;" :meta="adminTicketPage.total + ' &#x5F20;&#x5DE5;&#x5355;'">
+        <template slot="actions">
+          <button class="button secondary" type="button" :disabled="isLoading('adminTickets')" @click="loadAdminTickets">&#x5237;&#x65B0;</button>
+        </template>
+        <div class="field-row compact-filter-row admin-ticket-filter-row">
+          <div class="field">
+            <label>&#x72B6;&#x6001;</label>
+            <select v-model="adminTicketFilters.status">
+              <option value="">&#x5168;&#x90E8;</option>
+              <option value="0">&#x5F85;&#x5904;&#x7406;</option>
+              <option value="1">&#x53D7;&#x7406;&#x4E2D;</option>
+              <option value="2">&#x5DF2;&#x5206;&#x6D3E;</option>
+              <option value="3">&#x5DF2;&#x5B8C;&#x6210;</option>
+              <option value="4">&#x5DF2;&#x5173;&#x95ED;</option>
+              <option value="5">&#x5DF2;&#x62D2;&#x7EDD;</option>
+            </select>
+          </div>
+          <div class="field" v-if="isAdminUser()">
+            <label>&#x670D;&#x52A1;&#x70B9;&#x7F16;&#x53F7;</label>
+            <input v-model.number="adminTicketFilters.servicePointId" type="number" min="1">
+          </div>
+          <div class="field">
+            <label>&#x53D1;&#x8D77;&#x4EBA;</label>
+            <input v-model.trim="adminTicketFilters.requester" placeholder="ID / &#x6635;&#x79F0; / &#x624B;&#x673A;&#x53F7;">
+          </div>
+          <div class="field">
+            <label>&#x5F00;&#x59CB;&#x65F6;&#x95F4;</label>
+            <input v-model="adminTicketFilters.startTime" type="datetime-local">
+          </div>
+          <div class="field">
+            <label>&#x7ED3;&#x675F;&#x65F6;&#x95F4;</label>
+            <input v-model="adminTicketFilters.endTime" type="datetime-local">
+          </div>
+          <div class="field">
+            <label>&#x6392;&#x5E8F;</label>
+            <select v-model="adminTicketFilters.sortOrder">
+              <option value="desc">&#x65F6;&#x95F4;&#x5012;&#x5E8F;</option>
+              <option value="asc">&#x65F6;&#x95F4;&#x6B63;&#x5E8F;</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>&#x5B66;&#x751F;&#x56DE;&#x590D;</label>
+            <select v-model="adminTicketFilters.studentReplyRequired">
+              <option value="">&#x5168;&#x90E8;</option>
+              <option value="1">&#x9700;&#x8981;&#x56DE;&#x590D;</option>
+              <option value="0">&#x65E0;&#x9700;&#x56DE;&#x590D;</option>
+            </select>
+          </div>
+          <div class="filter-actions">
+            <button class="button" type="button" :disabled="isLoading('adminTickets')" @click="applyAdminTicketFilters">&#x67E5;&#x8BE2;</button>
+            <button class="button secondary" type="button" :disabled="isLoading('adminTickets')" @click="resetAdminTicketFilters">&#x91CD;&#x7F6E;</button>
+          </div>
+        </div>
+        <skeleton-list v-if="isLoading('adminTickets')" :rows="3"></skeleton-list>
+        <empty-state v-else-if="panelError('adminTickets')" title="&#x7BA1;&#x7406;&#x5DE5;&#x5355;&#x52A0;&#x8F7D;&#x5931;&#x8D25;" :description="panelError('adminTickets')" action-text="&#x91CD;&#x8BD5;" @action="loadAdminTickets"></empty-state>
+        <empty-state v-else-if="adminTickets.length === 0" title="&#x6682;&#x65E0;&#x7BA1;&#x7406;&#x5DE5;&#x5355;" description="&#x5F53;&#x524D;&#x6743;&#x9650;&#x4E0B;&#x6CA1;&#x6709;&#x53EF;&#x5904;&#x7406;&#x6570;&#x636E;&#x3002;"></empty-state>
+        <div v-else class="list">
+          <ticket-card
+            v-for="ticket in adminTickets"
+            :key="ticket.id"
+            admin
+            :ticket="ticket"
+            :status-text="ticketStatus(ticket.status)"
+            :busy-action="busyTicketAction(ticket.id)"
+            @accept="acceptTicket"
+            @detail="viewAdminTicketDetail"
+            @reply="openAdminTicketReplyDialog"
+            @reject="rejectTicket"
+            @finish="finishTicket"
+            @close="closeTicket"
+            @delete-ticket="openDeleteTicket"
+            @download-attachment="downloadTicketAttachment"
+          ></ticket-card>
+        </div>
+        <pager-control v-if="adminTicketPage.total > adminTicketPage.size" :page="adminTicketPage" :disabled="isLoading('adminTickets')" @change="changePage(adminTicketPage, $event, loadAdminTickets)"></pager-control>
+      </section-panel>
+
+      <section-panel v-if="adminModule === 'orders'" span="span-12" title="&#x9884;&#x7EA6;&#x8BA2;&#x5355;&#x5904;&#x7406;" :meta="adminOrderPage.total + ' &#x6761;&#x9884;&#x7EA6;'">
+        <template slot="actions">
+          <button class="button secondary" type="button" :disabled="isLoading('adminOrders')" @click="loadAdminOrders">&#x5237;&#x65B0;</button>
+        </template>
+        <div class="field-row compact-filter-row">
+          <div class="field">
+            <label>&#x670D;&#x52A1;&#x70B9;</label>
+            <input v-model.number="adminOrderFilters.servicePointId" type="number" min="1">
+          </div>
+          <div class="field">
+            <label>&#x7528;&#x6237; ID</label>
+            <input v-model.number="adminOrderFilters.userId" type="number" min="1">
+          </div>
+          <div class="field">
+            <label>&#x72B6;&#x6001;</label>
+            <select v-model="adminOrderFilters.status">
+              <option value="">&#x5168;&#x90E8;</option>
+              <option value="1">&#x5DF2;&#x9884;&#x7EA6;</option>
+              <option value="2">&#x5DF2;&#x53D6;&#x6D88;</option>
+              <option value="3">&#x5DF2;&#x5B8C;&#x6210;</option>
+              <option value="4">&#x5DF2;&#x8FC7;&#x671F;</option>
+              <option value="5">&#x723D;&#x7EA6;</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>&#x5F00;&#x59CB;&#x65F6;&#x95F4;</label>
+            <input v-model="adminOrderFilters.startTime" type="datetime-local">
+          </div>
+          <div class="field">
+            <label>&#x7ED3;&#x675F;&#x65F6;&#x95F4;</label>
+            <input v-model="adminOrderFilters.endTime" type="datetime-local">
+          </div>
+          <button class="button" type="button" :disabled="isLoading('adminOrders')" @click="applyAdminOrderFilters">&#x67E5;&#x8BE2;</button>
+        </div>
+        <div class="appointment-summary-strip">
+          <article class="appointment-summary-card primary"><span>&#x5F85;&#x5904;&#x7406;</span><strong>{{ adminOrderStats.pending || 0 }}</strong></article>
+          <article class="appointment-summary-card"><span>&#x4ECA;&#x65E5;&#x9884;&#x7EA6;</span><strong>{{ adminOrderStats.today || 0 }}</strong></article>
+          <article class="appointment-summary-card"><span>&#x5DF2;&#x5B8C;&#x6210;</span><strong>{{ adminOrderStats.finished || 0 }}</strong></article>
+          <article class="appointment-summary-card"><span>&#x5F02;&#x5E38;</span><strong>{{ adminOrderStats.abnormal || 0 }}</strong></article>
+        </div>
+        <skeleton-list v-if="isLoading('adminOrders')" :rows="2"></skeleton-list>
+        <empty-state v-else-if="panelError('adminOrders')" title="&#x9884;&#x7EA6;&#x8BA2;&#x5355;&#x52A0;&#x8F7D;&#x5931;&#x8D25;" :description="panelError('adminOrders')" action-text="&#x91CD;&#x8BD5;" @action="loadAdminOrders"></empty-state>
+        <admin-appointment-table v-else :orders="adminOrders" :format-time="formatTime" :status-text="appointmentOrderStatus" :selected-order-id="selectedAppointmentOrderId" @finish="finishAppointmentOrder" @no-show="markAppointmentNoShow" @logs="viewAppointmentOrderLogs" @delete-order="deleteAppointmentOrder"></admin-appointment-table>
+        <pager-control v-if="adminOrderPage.total > adminOrderPage.size" :page="adminOrderPage" :disabled="isLoading('adminOrders')" @change="changePage(adminOrderPage, $event, loadAdminOrders)"></pager-control>
+      </section-panel>
+
+      <section-panel v-if="adminModule === 'failures'" span="span-12" title="&#x9884;&#x7EA6;&#x5F02;&#x5E38;&#x8FFD;&#x8E2A;" :meta="appointmentFailureLogPage.total + ' &#x6761;&#x8BB0;&#x5F55;'">
+        <template slot="actions">
+          <button class="button secondary" type="button" :disabled="isLoading('appointmentFailureLogs')" @click="loadAppointmentFailureLogs">&#x5237;&#x65B0;</button>
+        </template>
+        <div class="field-row compact-filter-row">
+          <div class="field">
+            <label>&#x7C7B;&#x578B;</label>
+            <select v-model="appointmentFailureFilters.failureType">
+              <option value="">&#x5168;&#x90E8;</option>
+              <option value="ASYNC_ORDER_REJECTED">ASYNC_ORDER_REJECTED</option>
+              <option value="NOTIFICATION_DEAD">NOTIFICATION_DEAD</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>&#x72B6;&#x6001;</label>
+            <select v-model="appointmentFailureFilters.status">
+              <option value="">&#x5168;&#x90E8;</option>
+              <option value="COMPENSATED">COMPENSATED</option>
+              <option value="DEAD">DEAD</option>
+            </select>
+          </div>
+          <button class="button" type="button" :disabled="isLoading('appointmentFailureLogs')" @click="applyAppointmentFailureFilters">&#x67E5;&#x8BE2;</button>
+        </div>
+        <skeleton-list v-if="isLoading('appointmentFailureLogs')" :rows="2"></skeleton-list>
+        <empty-state v-else-if="panelError('appointmentFailureLogs')" title="&#x5F02;&#x5E38;&#x8BB0;&#x5F55;&#x52A0;&#x8F7D;&#x5931;&#x8D25;" :description="panelError('appointmentFailureLogs')" action-text="&#x91CD;&#x8BD5;" @action="loadAppointmentFailureLogs"></empty-state>
+        <appointment-failure-table v-else :logs="appointmentFailureLogs" :format-time="formatTime"></appointment-failure-table>
+        <pager-control v-if="appointmentFailureLogPage.total > appointmentFailureLogPage.size" :page="appointmentFailureLogPage" :disabled="isLoading('appointmentFailureLogs')" @change="changePage(appointmentFailureLogPage, $event, loadAppointmentFailureLogs)"></pager-control>
+      </section-panel>
+
+      <section-panel v-if="adminModule === 'points'" span="span-12" title="&#x670D;&#x52A1;&#x70B9;&#x7BA1;&#x7406;" :meta="adminServicePointPage.total + ' &#x4E2A;&#x670D;&#x52A1;&#x70B9;'">
+        <template slot="actions">
+          <button class="button secondary" type="button" :disabled="isLoading('adminServicePoints')" @click="loadAdminServicePoints">&#x5237;&#x65B0;</button>
+        </template>
+        <form @submit.prevent="createServicePoint">
+          <div class="field-row">
+            <div class="field"><label>&#x540D;&#x79F0;</label><input v-model.trim="servicePointForm.name"></div>
+            <div class="field"><label>&#x5206;&#x7C7B;&#x7F16;&#x53F7;</label><input v-model.number="servicePointForm.categoryId" type="number"></div>
+          </div>
+          <div class="field-row">
+            <div class="field"><label>&#x533A;&#x57DF;</label><input v-model.trim="servicePointForm.area"></div>
+            <div class="field"><label>&#x7535;&#x8BDD;</label><input v-model.trim="servicePointForm.phone"></div>
+          </div>
+          <div class="field"><label>&#x5730;&#x5740;</label><input v-model.trim="servicePointForm.address"></div>
+          <div class="field"><label>&#x8BF4;&#x660E;</label><textarea v-model.trim="servicePointForm.description"></textarea></div>
+          <button class="button full-width" type="submit" :disabled="isSubmitting('createServicePoint')">&#x65B0;&#x589E;&#x670D;&#x52A1;&#x70B9;</button>
+        </form>
+        <skeleton-list v-if="isLoading('adminServicePoints')" :rows="2"></skeleton-list>
+        <empty-state v-else-if="panelError('adminServicePoints')" title="&#x670D;&#x52A1;&#x70B9;&#x52A0;&#x8F7D;&#x5931;&#x8D25;" :description="panelError('adminServicePoints')" action-text="&#x91CD;&#x8BD5;" @action="loadAdminServicePoints"></empty-state>
+        <div v-else class="table-wrap">
+          <table>
+            <thead><tr><th>&#x540D;&#x79F0;</th><th>&#x72B6;&#x6001;</th><th>&#x64CD;&#x4F5C;</th></tr></thead>
+            <tbody>
+              <tr v-for="point in adminServicePoints" :key="point.id">
+                <td>{{ point.name }}</td>
+                <td>{{ servicePointStatus(point.status) }}</td>
+                <td>
+                  <button class="button secondary" type="button" @click="openEditServicePoint(point)">&#x4FEE;&#x6539;</button>
+                  <button class="button secondary" type="button" v-if="isAdminUser() && Number(point.status) === 2" @click="approveServicePoint(point)">&#x5BA1;&#x6838;</button>
+                  <button class="button secondary" type="button" v-if="isAdminUser() && Number(point.status) === 0" @click="enableServicePoint(point)">&#x542F;&#x7528;</button>
+                  <button class="button danger" type="button" v-if="isAdminUser()" @click="disableServicePoint(point)">&#x7981;&#x7528;</button>
+                  <button class="button danger" type="button" v-if="isAdminUser() && Number(point.status) === 0" :disabled="isSubmitting('servicePoint:' + point.id + ':delete')" @click="deleteServicePoint(point)">&#x5220;&#x9664;</button>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <pager-control v-if="adminServicePointPage.total > adminServicePointPage.size" :page="adminServicePointPage" :disabled="isLoading('adminServicePoints')" @change="changePage(adminServicePointPage, $event, loadAdminServicePoints)"></pager-control>
+      </section-panel>
+
+      <section-panel v-if="adminModule === 'slots'" span="span-12" title="&#x9884;&#x7EA6;&#x540D;&#x989D;&#x7BA1;&#x7406;" :meta="adminSlots.length + ' &#x4E2A;&#x540D;&#x989D;'">
+        <template slot="actions">
+          <button class="button secondary" type="button" :disabled="isLoading('adminSlots')" @click="loadAdminSlots">&#x5237;&#x65B0;</button>
+        </template>
+        <form @submit.prevent="createAppointmentSlot">
+          <div class="field-row">
+            <div class="field"><label>&#x670D;&#x52A1;&#x70B9;&#x7F16;&#x53F7;</label><input v-model.number="slotForm.servicePointId" type="number"></div>
+            <div class="field"><label>&#x6807;&#x9898;</label><input v-model.trim="slotForm.title"></div>
+          </div>
+          <div class="field-row">
+            <div class="field"><label>&#x603B;&#x540D;&#x989D;</label><input v-model.number="slotForm.totalQuota" type="number" min="1"></div>
+            <div class="field"><label>&#x53EF;&#x7528;&#x540D;&#x989D;</label><input v-model.number="slotForm.availableQuota" type="number" min="0"></div>
+          </div>
+          <div class="field-row">
+            <div class="field"><label>&#x5F00;&#x59CB;&#x65F6;&#x95F4;</label><input v-model="slotForm.startTime" type="datetime-local"></div>
+            <div class="field"><label>&#x7ED3;&#x675F;&#x65F6;&#x95F4;</label><input v-model="slotForm.endTime" type="datetime-local"></div>
+          </div>
+          <div class="field"><label>&#x8BF4;&#x660E;</label><textarea v-model.trim="slotForm.description"></textarea></div>
+          <button class="button full-width" type="submit" :disabled="isSubmitting('createSlot')">&#x53D1;&#x5E03;&#x9884;&#x7EA6;&#x540D;&#x989D;</button>
+        </form>
+        <skeleton-list v-if="isLoading('adminSlots')" :rows="2"></skeleton-list>
+        <empty-state v-else-if="panelError('adminSlots')" title="&#x9884;&#x7EA6;&#x540D;&#x989D;&#x52A0;&#x8F7D;&#x5931;&#x8D25;" :description="panelError('adminSlots')" action-text="&#x91CD;&#x8BD5;" @action="loadAdminSlots"></empty-state>
+        <div v-else class="table-wrap">
+          <table>
+            <thead><tr><th>&#x6807;&#x9898;</th><th>&#x540D;&#x989D;</th><th>&#x72B6;&#x6001;</th><th>&#x64CD;&#x4F5C;</th></tr></thead>
+            <tbody>
+              <tr v-for="slot in adminSlots" :key="slot.id">
+                <td>{{ slot.title }}</td>
+                <td>{{ slot.availableQuota }}/{{ slot.totalQuota }}</td>
+                <td>{{ slotStatus(slot.status) }}</td>
+                <td>
+                  <button class="button secondary" type="button" @click="syncSlotQuota(slot)">&#x540C;&#x6B65;</button>
+                  <button class="button secondary" type="button" v-if="Number(slot.status) !== 1" @click="openSlot(slot)">&#x5F00;&#x542F;</button>
+                  <button class="button danger" type="button" @click="closeSlot(slot)">&#x5173;&#x95ED;</button>
+                  <button class="button danger" type="button" v-if="Number(slot.status) === 0" :disabled="isSubmitting('slot:' + slot.id + ':delete')" @click="deleteSlot(slot)">&#x5220;&#x9664;</button>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section-panel>
+
+      <section-panel v-if="adminModule === 'knowledge'" span="span-12" title="&#x667A;&#x80FD;&#x77E5;&#x8BC6;&#x5E93;&#x7BA1;&#x7406;" :meta="adminKnowledge.length + ' &#x6761;&#x77E5;&#x8BC6;'">
+        <template slot="actions">
+          <button class="button secondary" type="button" :disabled="isLoading('adminKnowledge')" @click="loadAdminKnowledge">&#x5237;&#x65B0;</button>
+          <button class="button" type="button" :disabled="isSubmitting('syncKnowledge')" @click="syncAiKnowledge">&#x540C;&#x6B65;&#x667A;&#x80FD;&#x52A9;&#x624B;</button>
+        </template>
+        <form @submit.prevent="createAiKnowledge">
+          <div class="field-row">
+            <div class="field"><label>&#x6807;&#x9898;</label><input v-model.trim="knowledgeForm.title"></div>
+            <div class="field"><label>&#x5206;&#x7C7B;</label><input v-model.trim="knowledgeForm.category"></div>
+          </div>
+          <div class="field"><label>&#x5185;&#x5BB9;</label><textarea v-model.trim="knowledgeForm.content"></textarea></div>
+          <div class="field"><label>&#x6765;&#x6E90;</label><input v-model.trim="knowledgeForm.source"></div>
+          <button class="button full-width" type="submit" :disabled="isSubmitting('createKnowledge')">&#x65B0;&#x589E;&#x77E5;&#x8BC6;</button>
+        </form>
+        <skeleton-list v-if="isLoading('adminKnowledge')" :rows="2"></skeleton-list>
+        <empty-state v-else-if="panelError('adminKnowledge')" title="&#x77E5;&#x8BC6;&#x5E93;&#x52A0;&#x8F7D;&#x5931;&#x8D25;" :description="panelError('adminKnowledge')" action-text="&#x91CD;&#x8BD5;" @action="loadAdminKnowledge"></empty-state>
+        <div v-else class="table-wrap">
+          <table>
+            <thead><tr><th>&#x6807;&#x9898;</th><th>&#x5206;&#x7C7B;</th><th>&#x72B6;&#x6001;</th><th>&#x64CD;&#x4F5C;</th></tr></thead>
+            <tbody>
+              <tr v-for="doc in adminKnowledge" :key="doc.id">
+                <td>{{ doc.title }}</td>
+                <td>{{ doc.category || '-' }}</td>
+                <td>{{ knowledgeStatus(doc.status) }}</td>
+                <td>
+                  <button class="button secondary" type="button" @click="openKnowledgeDetail(doc)">&#x8BE6;&#x60C5;</button>
+                  <button class="button secondary" type="button" @click="enableKnowledge(doc)">&#x542F;&#x7528;</button>
+                  <button class="button danger" type="button" @click="disableKnowledge(doc)">&#x7981;&#x7528;</button>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section-panel>
+
+      <section-panel v-if="adminModule === 'aiTrace'" span="span-12" title="AI &#x8FFD;&#x8E2A;" :meta="adminAiTracePage.total + ' &#x6761;&#x8BF7;&#x6C42;'">
+        <template slot="actions">
+          <button class="button secondary" type="button" :disabled="isLoading('adminAiTraces') || isLoading('adminAiTraceMetrics')" @click="refreshAdminAiTraceDashboard">&#x5237;&#x65B0;</button>
+        </template>
+        <div class="appointment-summary-strip">
+          <article class="appointment-summary-card"><span>&#x6700;&#x8FD1;&#x8BF7;&#x6C42;</span><strong>{{ adminAiTraceMetrics.totalRecent || 0 }}</strong></article>
+          <article class="appointment-summary-card"><span>&#x6709;&#x6765;&#x6E90;</span><strong>{{ adminAiTraceMetrics.sourceBackedCount || 0 }}</strong></article>
+          <article class="appointment-summary-card"><span>&#x515C;&#x5E95;</span><strong>{{ adminAiTraceMetrics.fallbackCount || 0 }}</strong></article>
+          <article class="appointment-summary-card"><span>&#x6743;&#x9650;&#x62D2;&#x7EDD;</span><strong>{{ adminAiTraceMetrics.permissionDeniedCount || 0 }}</strong></article>
+          <article class="appointment-summary-card"><span>&#x5E73;&#x5747;&#x7F6E;&#x4FE1;&#x5EA6;</span><strong>{{ confidenceText(adminAiTraceMetrics.averageConfidence) }}</strong></article>
+        </div>
+        <skeleton-list v-if="isLoading('adminAiTraces')" :rows="3"></skeleton-list>
+        <empty-state v-else-if="panelError('adminAiTraces')" title="AI &#x8FFD;&#x8E2A;&#x52A0;&#x8F7D;&#x5931;&#x8D25;" :description="panelError('adminAiTraces')" action-text="&#x91CD;&#x8BD5;" @action="loadAdminAiTraces"></empty-state>
+        <empty-state v-else-if="adminAiTraces.length === 0" title="&#x6682;&#x65E0; AI &#x8FFD;&#x8E2A;" description="&#x53D1;&#x8D77;&#x667A;&#x80FD;&#x52A9;&#x624B;&#x95EE;&#x9898;&#x540E;&#x4F1A;&#x5728;&#x8FD9;&#x91CC;&#x663E;&#x793A;&#x3002;"></empty-state>
+        <div v-else class="table-wrap">
+          <table class="appointment-table">
+            <thead>
+              <tr>
+                <th>TraceId</th>
+                <th>&#x7528;&#x6237;</th>
+                <th>&#x610F;&#x56FE;</th>
+                <th>&#x7F16;&#x6392;</th>
+                <th>&#x7F6E;&#x4FE1;&#x5EA6;</th>
+                <th>&#x6765;&#x6E90;</th>
+                <th>&#x72B6;&#x6001;</th>
+                <th>&#x65F6;&#x95F4;</th>
+                <th>&#x64CD;&#x4F5C;</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="trace in adminAiTraces" :key="trace.messageId">
+                <td><strong>{{ trace.traceId || '-' }}</strong></td>
+                <td>{{ trace.userId || '-' }}</td>
+                <td>{{ trace.intent || '-' }}</td>
+                <td><span class="trace-orchestrator-badge">{{ aiTraceOrchestratorText(trace.orchestrator) }}</span></td>
+                <td>{{ confidenceText(trace.confidence) }}</td>
+                <td>{{ trace.sourceCount || 0 }} / {{ trace.businessCardCount || 0 }}</td>
+                <td><span class="badge" :class="aiTraceStatusClass(trace)">{{ aiTraceStatusText(trace) }}</span></td>
+                <td><small>{{ formatTime(trace.createTime) }}</small></td>
+                <td><button class="button secondary" type="button" @click="selectAiTrace(trace)">&#x8BE6;&#x60C5;</button></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <pager-control v-if="adminAiTracePage.total > adminAiTracePage.size" :page="adminAiTracePage" :disabled="isLoading('adminAiTraces')" @change="changePage(adminAiTracePage, $event, loadAdminAiTraces)"></pager-control>
+      </section-panel>
+
+      <section-panel v-if="adminModule === 'logs'" span="span-12" title="&#x64CD;&#x4F5C;&#x65E5;&#x5FD7;">
+        <template slot="actions">
+          <input v-model.trim="operationLogFilters.appointmentOrderId" class="compact-input" type="text" inputmode="numeric" placeholder="&#x9884;&#x7EA6;&#x8BA2;&#x5355; ID">
+          <button class="button secondary" type="button" :disabled="isLoading('operationLogs')" @click="loadOperationLogs">&#x5237;&#x65B0;</button>
+          <button class="button secondary" type="button" :disabled="isLoading('operationLogs') || !operationLogFilters.appointmentOrderId" @click="resetOperationLogFilters">&#x5168;&#x90E8;&#x65E5;&#x5FD7;</button>
+        </template>
+        <skeleton-list v-if="isLoading('operationLogs')" :rows="3"></skeleton-list>
+        <empty-state v-else-if="panelError('operationLogs')" title="&#x65E5;&#x5FD7;&#x52A0;&#x8F7D;&#x5931;&#x8D25;" :description="panelError('operationLogs')" action-text="&#x91CD;&#x8BD5;" @action="loadOperationLogs"></empty-state>
+        <logs-table v-else :logs="operationLogs" :format-time="formatTime"></logs-table>
+      </section-panel>
+    </section>
+  </main>
+
+  <div
+    v-if="selectedAiTrace"
+    class="modal-backdrop"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="ai-trace-detail-title"
+    @click.self="closeAiTraceDetail"
+  >
+    <section class="review-dialog ai-trace-dialog">
+      <header class="review-dialog-header">
+        <div>
+          <p class="panel-eyebrow">AI &#x8FFD;&#x8E2A;&#x8BE6;&#x60C5;</p>
+          <h2 id="ai-trace-detail-title">{{ selectedAiTrace.traceId || '-' }}</h2>
+        </div>
+        <span class="badge" :class="aiTraceStatusClass(selectedAiTrace)">{{ aiTraceStatusText(selectedAiTrace) }}</span>
+      </header>
+      <div class="ai-trace-detail">
+        <dl class="meta-grid">
+          <div><dt>&#x4F1A;&#x8BDD;</dt><dd>{{ selectedAiTrace.sessionId || '-' }}</dd></div>
+          <div><dt>&#x6807;&#x9898;</dt><dd>{{ selectedAiTrace.sessionTitle || '-' }}</dd></div>
+          <div><dt>&#x7528;&#x6237;</dt><dd>{{ selectedAiTrace.userId || '-' }}</dd></div>
+          <div><dt>&#x610F;&#x56FE;</dt><dd>{{ selectedAiTrace.intent || '-' }}</dd></div>
+          <div><dt>&#x7F16;&#x6392;&#x6A21;&#x5F0F;</dt><dd>{{ aiTraceOrchestratorText(selectedAiTrace.orchestrator) }}</dd></div>
+          <div><dt>LangGraph &#x8282;&#x70B9;</dt><dd>{{ selectedAiTrace.nodeCount || 0 }}</dd></div>
+          <div><dt>&#x7F6E;&#x4FE1;&#x5EA6;</dt><dd>{{ confidenceText(selectedAiTrace.confidence) }}</dd></div>
+          <div><dt>&#x515C;&#x5E95;&#x539F;&#x56E0;</dt><dd>{{ selectedAiTrace.fallbackReason || '-' }}</dd></div>
+          <div><dt>&#x6765;&#x6E90; / &#x5361;&#x7247;</dt><dd>{{ selectedAiTrace.sourceCount || 0 }} / {{ selectedAiTrace.businessCardCount || 0 }}</dd></div>
+          <div><dt>&#x52A8;&#x4F5C;&#x8349;&#x7A3F;</dt><dd>{{ selectedAiTrace.actionDraftCount || 0 }}</dd></div>
+        </dl>
+        <div class="field">
+          <label>&#x7528;&#x6237;&#x95EE;&#x9898;</label>
+          <textarea readonly :value="'已脱敏（原始长度 ' + (selectedAiTrace.questionLength || 0) + '）'"></textarea>
+        </div>
+        <div class="field">
+          <label>AI &#x56DE;&#x7B54;</label>
+          <textarea readonly :value="'已脱敏（原始长度 ' + (selectedAiTrace.answerLength || 0) + '）'"></textarea>
+        </div>
+        <div class="field">
+          <label>LangGraph &#x8282;&#x70B9;&#x94FE;&#x8DEF;</label>
+          <div v-if="selectedAiTrace.langGraphNodes.length" class="trace-node-timeline">
+            <article v-for="node in selectedAiTrace.langGraphNodes" :key="node.order + '-' + node.nodeName" class="trace-node-card" :class="aiTraceNodeStatusClass(node)">
+              <header>
+                <strong>{{ node.order }}. {{ node.nodeName || '-' }}</strong>
+                <span>{{ aiTraceNodeStatusText(node) }}</span>
+              </header>
+              <div class="trace-node-meta">
+                <span>&#x8017;&#x65F6; {{ formatLatencyMs(node.latencyMs) }}</span>
+                <span v-if="node.toolName">&#x5DE5;&#x5177; {{ node.toolName }}</span>
+                <span v-if="node.toolProtocol">&#x534F;&#x8BAE; {{ node.toolProtocol }}</span>
+              </div>
+              <p v-if="node.fallbackReason || node.errorType" class="trace-node-reason">
+                <span v-if="node.fallbackReason">{{ node.fallbackReason }}</span>
+                <span v-if="node.errorType">{{ node.errorType }}</span>
+              </p>
+            </article>
+          </div>
+          <p v-else class="trace-empty-state">&#x6682;&#x65E0; LangGraph &#x8282;&#x70B9;&#x8BB0;&#x5F55;</p>
+        </div>
+        <div class="field">
+          <label>&#x5DE5;&#x5177;&#x6267;&#x884C;&#x8BB0;&#x5F55;</label>
+          <div v-if="selectedAiTrace.executionRecords.length" class="trace-record-list">
+            <article v-for="(record, index) in selectedAiTrace.executionRecords" :key="record.toolName + '-' + index" class="trace-record-item">
+              <strong>{{ record.toolName || '-' }}</strong>
+              <span>{{ record.toolProtocol || '-' }}</span>
+              <small><span v-if="record.success">&#x6210;&#x529F;</span><span v-else>&#x5931;&#x8D25;</span> / {{ record.count || 0 }} / {{ formatLatencyMs(record.latencyMs) }}</small>
+              <em v-if="record.errorType">{{ record.errorType }}</em>
+            </article>
+          </div>
+          <p v-else class="trace-empty-state">&#x6682;&#x65E0;&#x5DE5;&#x5177;&#x6267;&#x884C;&#x8BB0;&#x5F55;</p>
+        </div>
+        <div class="field">
+          <label>Fallback &#x8BB0;&#x5F55;</label>
+          <div v-if="selectedAiTrace.fallbackRecords.length" class="trace-record-list">
+            <article v-for="(record, index) in selectedAiTrace.fallbackRecords" :key="record.reason + '-' + index" class="trace-record-item">
+              <strong>{{ record.reason || '-' }}</strong>
+              <span>{{ record.stage || '-' }}</span>
+              <small>{{ formatTraceDetail(record.detail) }}</small>
+            </article>
+          </div>
+          <p v-else class="trace-empty-state">&#x6682;&#x65E0; fallback &#x8BB0;&#x5F55;</p>
+        </div>
+        <div class="field">
+          <label>&#x539F;&#x59CB;&#x7ED3;&#x6784;&#x5316;&#x54CD;&#x5E94;</label>
+          <pre class="trace-json">{{ formatJson(selectedAiTrace.rawResponse) }}</pre>
+        </div>
+      </div>
+      <footer class="review-dialog-actions">
+        <button class="button secondary" type="button" @click="closeAiTraceDetail">&#x5173;&#x95ED;</button>
+      </footer>
+    </section>
+  </div>
+
+  <div
+    v-if="aiDetailDialog.open"
+    class="modal-backdrop"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="ai-business-detail-title"
+    @click.self="closeAiDetailDialog"
+  >
+    <section class="review-dialog ai-detail-dialog">
+      <header class="review-dialog-header">
+        <div>
+          <p class="panel-eyebrow">&#x667A;&#x80FD;&#x52A9;&#x624B;&#x4E1A;&#x52A1;&#x5361;&#x7247;</p>
+          <h2 id="ai-business-detail-title">{{ aiDetailDialog.title }}</h2>
+        </div>
+        <span class="badge warning">{{ aiDetailTypeText(aiDetailDialog.type) }}</span>
+      </header>
+      <skeleton-list v-if="aiDetailDialog.loading" :rows="2"></skeleton-list>
+      <template v-else>
+        <p v-if="aiDetailDialog.error" class="field-error">{{ aiDetailDialog.error }}</p>
+        <dl class="review-detail-grid">
+          <div v-for="row in aiDetailRows(aiDetailDialog.item)" :key="row.label">
+            <dt>{{ row.label }}</dt>
+            <dd>{{ row.value }}</dd>
+          </div>
+        </dl>
+        <section v-if="aiDetailContent(aiDetailDialog.item)" class="knowledge-detail-content ai-detail-content">
+          <h3>&#x8BE6;&#x7EC6;&#x5185;&#x5BB9;</h3>
+          <p>{{ aiDetailContent(aiDetailDialog.item) }}</p>
+        </section>
+        <section v-if="aiDetailComments(aiDetailDialog.item).length > 0" class="ai-detail-comments">
+          <h3>&#x8865;&#x5145;&#x56DE;&#x590D;</h3>
+          <article v-for="comment in aiDetailComments(aiDetailDialog.item)" :key="comment.id" class="ticket-comment-item">
+            <strong>{{ comment.userType || '-' }} / {{ formatTime(comment.createTime) }}</strong>
+            <p>{{ comment.content || '-' }}</p>
+            <small v-if="comment.attachmentName">{{ comment.attachmentName }}</small>
+          </article>
+        </section>
+      </template>
+      <footer class="review-dialog-actions">
+        <button class="button secondary" type="button" @click="closeAiDetailDialog">&#x5173;&#x95ED;</button>
+      </footer>
+    </section>
+  </div>
+
+  <div
+    v-if="selectedKnowledgeDetail"
+    class="modal-backdrop"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="knowledge-detail-title"
+    @click.self="closeKnowledgeDetail"
+  >
+    <section class="review-dialog knowledge-detail-dialog">
+      <header class="review-dialog-header">
+        <div>
+          <p class="panel-eyebrow">&#x667A;&#x80FD;&#x77E5;&#x8BC6;&#x5E93;</p>
+          <h2 id="knowledge-detail-title">{{ selectedKnowledgeDetail.title || '&#x672A;&#x547D;&#x540D;&#x77E5;&#x8BC6;' }}</h2>
+        </div>
+        <span class="badge" :class="{success: Number(selectedKnowledgeDetail.status) === 1, 'danger-soft': Number(selectedKnowledgeDetail.status) !== 1}">{{ knowledgeStatus(selectedKnowledgeDetail.status) }}</span>
+      </header>
+      <dl class="review-detail-grid">
+        <div><dt>ID</dt><dd>{{ selectedKnowledgeDetail.id || '-' }}</dd></div>
+        <div><dt>&#x5206;&#x7C7B;</dt><dd>{{ selectedKnowledgeDetail.category || '-' }}</dd></div>
+        <div><dt>&#x6765;&#x6E90;</dt><dd>{{ selectedKnowledgeDetail.source || '-' }}</dd></div>
+        <div><dt>&#x72B6;&#x6001;</dt><dd>{{ knowledgeStatus(selectedKnowledgeDetail.status) }}</dd></div>
+        <div><dt>&#x521B;&#x5EFA;&#x65F6;&#x95F4;</dt><dd>{{ formatTime(selectedKnowledgeDetail.createTime) }}</dd></div>
+        <div><dt>&#x66F4;&#x65B0;&#x65F6;&#x95F4;</dt><dd>{{ formatTime(selectedKnowledgeDetail.updateTime) }}</dd></div>
+      </dl>
+      <section class="knowledge-detail-content">
+        <h3>&#x77E5;&#x8BC6;&#x5185;&#x5BB9;</h3>
+        <p>{{ selectedKnowledgeDetail.content || '&#x6682;&#x65E0;&#x5185;&#x5BB9;' }}</p>
+      </section>
+      <footer class="review-dialog-actions">
+        <button class="button secondary" type="button" @click="closeKnowledgeDetail">&#x5173;&#x95ED;</button>
+      </footer>
+    </section>
+  </div>
+
+  <div
+    v-if="adminSelectedTicket"
+    class="modal-backdrop"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="admin-ticket-detail-title"
+    @click.self="closeAdminTicketDetail"
+  >
+    <section class="review-dialog ticket-detail-dialog">
+      <header class="review-dialog-header">
+        <div>
+          <p class="panel-eyebrow">&#x5DE5;&#x5355;&#x8BE6;&#x60C5;</p>
+          <h2 id="admin-ticket-detail-title">{{ (adminSelectedTicket.ticket || adminSelectedTicket).title || '&#x5DE5;&#x5355;' }}</h2>
+        </div>
+        <span class="badge warning">{{ ticketStatus((adminSelectedTicket.ticket || adminSelectedTicket).status) }}</span>
+      </header>
+      <ticket-detail embedded :ticket="adminSelectedTicket" :allow-student-reply="false" @download-comment-attachment="downloadTicketAttachment"></ticket-detail>
+      <footer class="review-dialog-actions">
+        <button class="button secondary" type="button" @click="closeAdminTicketDetail">&#x5173;&#x95ED;</button>
+        <button class="button" type="button" v-if="canReplyAdminTicket(adminSelectedTicket)" :disabled="isSubmitting('ticket:' + (adminSelectedTicket.ticket ? adminSelectedTicket.ticket.id : adminSelectedTicket.id) + ':reply')" @click="openAdminTicketReplyDialog(adminSelectedTicket.ticket || adminSelectedTicket)">&#x56DE;&#x590D;&#x5B66;&#x751F;</button>
+      </footer>
+    </section>
+  </div>
+
+  <div
+    v-if="replyDialog.open"
+    class="modal-backdrop"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="comment-reply-title"
+    @click.self="closeReplyDialog"
+  >
+    <section class="review-dialog comment-reply-dialog">
+      <header class="review-dialog-header">
+        <div>
+          <p class="panel-eyebrow">&#x4E92;&#x52A8;&#x7559;&#x8A00;</p>
+          <h2 id="comment-reply-title">{{ replyDialogTargetText() }}</h2>
+        </div>
+        <span class="badge">{{ replyDialog.target && replyDialog.target.floorNo ? '#' + replyDialog.target.floorNo + ' \u697c' : '\u56de\u590d' }}</span>
+      </header>
+      <p class="reply-dialog-preview">{{ replyDialog.target ? replyDialog.target.content : '' }}</p>
+      <div class="field">
+        <label>&#x56DE;&#x590D;&#x5185;&#x5BB9; <span>&#x5FC5;&#x586B;</span></label>
+        <textarea v-model="replyDialog.content" maxlength="1024"></textarea>
+        <small class="field-counter">{{ replyDialog.content.length }}/1024</small>
+      </div>
+      <footer class="review-dialog-actions">
+        <button class="button secondary" type="button" :disabled="isSubmitting(replySubmitKey())" @click="closeReplyDialog">&#x53D6;&#x6D88;</button>
+        <button class="button" type="button" :disabled="isSubmitting(replySubmitKey())" @click="submitReplyDialog">
+          {{ isSubmitting(replySubmitKey()) ? '\u56de\u590d\u4e2d' : '\u63d0\u4ea4\u56de\u590d' }}
+        </button>
+      </footer>
+    </section>
+  </div>
+
+  <div
+    v-if="inboxRevokeDialogOpen"
+    class="modal-backdrop"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="inbox-revoke-title"
+    @click.self="closeInboxRevokeDialog"
+  >
+    <section class="review-dialog inbox-revoke-dialog">
+      <header class="review-dialog-header">
+        <div>
+          <p class="panel-eyebrow">&#x6536;&#x4EF6;&#x7BB1;&#x6CBB;&#x7406;</p>
+          <h2 id="inbox-revoke-title">&#x64A4;&#x56DE;&#x6307;&#x5B9A;&#x6D88;&#x606F;</h2>
+        </div>
+        <span class="badge warning">{{ selectedRevokeInboxIds.length }} &#x6761;&#x5DF2;&#x9009;</span>
+      </header>
+      <div class="field-row">
+        <div class="field">
+          <label>&#x6D88;&#x606F;&#x6708;&#x4EFD;</label>
+          <input v-model.trim="inboxRevokeMonthKey" maxlength="6" placeholder="202607">
+        </div>
+        <div class="field">
+          <label>&#x5217;&#x8868;&#x64CD;&#x4F5C;</label>
+          <div class="toolbar">
+            <button class="button secondary" type="button" :disabled="isLoading('inboxRevocableMessages')" @click="loadRevocableInboxMessages">&#x5237;&#x65B0;</button>
+            <button class="button secondary" type="button" :disabled="inboxRevocableMessages.length === 0" @click="toggleAllRevocableInboxMessages">{{ selectedRevokeInboxIds.length === inboxRevocableMessages.length ? '&#x53D6;&#x6D88;&#x5168;&#x9009;' : '&#x5168;&#x9009;' }}</button>
+          </div>
+        </div>
+      </div>
+      <skeleton-list v-if="isLoading('inboxRevocableMessages')" :rows="3"></skeleton-list>
+      <empty-state v-else-if="panelError('inboxRevocableMessages')" title="&#x53EF;&#x64A4;&#x56DE;&#x6D88;&#x606F;&#x52A0;&#x8F7D;&#x5931;&#x8D25;" :description="panelError('inboxRevocableMessages')" action-text="&#x91CD;&#x8BD5;" @action="loadRevocableInboxMessages"></empty-state>
+      <empty-state v-else-if="inboxRevocableMessages.length === 0" title="&#x6682;&#x65E0;&#x53EF;&#x64A4;&#x56DE;&#x6D88;&#x606F;" description="&#x53EA;&#x663E;&#x793A;&#x672A;&#x8FC7;&#x671F;&#x4E14;&#x672A;&#x64A4;&#x56DE;&#x7684;&#x5DF2;&#x53D1;&#x9001;&#x6D88;&#x606F;&#x3002;"></empty-state>
+      <div v-else class="inbox-revoke-list">
+        <label
+          v-for="item in inboxRevocableMessages"
+          :key="item.monthKey + '-' + item.messageId"
+          class="inbox-revoke-item"
+          :class="{selected: selectedRevokeInboxMap[item.messageId]}"
+          @click.prevent="toggleRevocableInboxMessage(item)"
+        >
+          <input type="checkbox" :checked="Boolean(selectedRevokeInboxMap[item.messageId])" readonly>
+          <span>
+            <strong>{{ item.title }}</strong>
+            <small>{{ inboxTypeText(item.messageType) }} / {{ inboxTargetText(item.targetType) }} / ID {{ item.messageId }} / {{ formatTime(item.createTime) }}</small>
+            <em v-if="item.summary">{{ item.summary }}</em>
+          </span>
+          <span class="badge">{{ item.expireTime ? formatTime(item.expireTime) : '&#x957F;&#x671F;&#x6709;&#x6548;' }}</span>
+        </label>
+      </div>
+      <footer class="review-dialog-actions">
+        <button class="button secondary" type="button" :disabled="isSubmitting('inbox:batchRevoke')" @click="closeInboxRevokeDialog">&#x53D6;&#x6D88;</button>
+        <button class="button danger" type="button" :disabled="selectedRevokeInboxIds.length === 0 || isSubmitting('inbox:batchRevoke')" @click="revokeSelectedInboxMessages">
+          {{ isSubmitting('inbox:batchRevoke') ? '&#x64A4;&#x56DE;&#x4E2D;' : '&#x786E;&#x8BA4;&#x64A4;&#x56DE;' }}
+        </button>
+      </footer>
+    </section>
+  </div>
+
+  <div
+    v-if="adminAppointmentActionDialog.open"
+    class="modal-backdrop"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="appointment-action-title"
+    @click.self="closeAdminAppointmentActionDialog"
+  >
+    <section class="review-dialog">
+      <header class="review-dialog-header">
+        <div>
+          <p class="panel-eyebrow">&#x9884;&#x7EA6;&#x8BA2;&#x5355;</p>
+          <h2 id="appointment-action-title">{{ adminAppointmentActionTitle() }}</h2>
+        </div>
+        <span class="badge warning">{{ adminAppointmentActionDialog.order ? appointmentOrderStatus(adminAppointmentActionDialog.order) : '-' }}</span>
+      </header>
+      <dl class="review-detail-grid" v-if="adminAppointmentActionDialog.order">
+        <div><dt>&#x8BA2;&#x5355;</dt><dd>{{ adminAppointmentActionDialog.order.id }}</dd></div>
+        <div><dt>&#x7528;&#x6237;</dt><dd>{{ adminAppointmentActionDialog.order.userId || '-' }}</dd></div>
+        <div><dt>&#x670D;&#x52A1;&#x70B9;</dt><dd>{{ adminAppointmentActionDialog.order.servicePointName || adminAppointmentActionDialog.order.servicePointId || '-' }}</dd></div>
+        <div><dt>&#x65F6;&#x6BB5;</dt><dd>{{ formatTime(adminAppointmentActionDialog.order.startTime) }} - {{ formatTime(adminAppointmentActionDialog.order.endTime) }}</dd></div>
+      </dl>
+      <div class="field">
+        <label>{{ adminAppointmentActionPublicLabel() }} <span>&#x5B66;&#x751F;&#x53EF;&#x89C1;&#xFF0C;&#x53EF;&#x9009;</span></label>
+        <textarea v-model.trim="adminAppointmentActionDialog.remark" maxlength="512"></textarea>
+        <small class="field-counter">{{ adminAppointmentActionDialog.remark.length }}/512</small>
+      </div>
+      <div class="field">
+        <label>&#x5185;&#x90E8;&#x5907;&#x6CE8; <span>&#x4EC5;&#x7BA1;&#x7406;&#x5458;&#x53EF;&#x89C1;&#xFF0C;&#x53EF;&#x9009;</span></label>
+        <textarea v-model.trim="adminAppointmentActionDialog.internalRemark" maxlength="512"></textarea>
+        <small class="field-counter">{{ adminAppointmentActionDialog.internalRemark.length }}/512</small>
+      </div>
+      <footer class="review-dialog-actions">
+        <button class="button secondary" type="button" :disabled="isSubmitting(adminAppointmentActionSubmitKey())" @click="closeAdminAppointmentActionDialog">&#x53D6;&#x6D88;</button>
+        <button class="button" :class="{'danger': adminAppointmentActionDialog.action === 'no-show'}" type="button" :disabled="isSubmitting(adminAppointmentActionSubmitKey())" @click="submitAdminAppointmentAction">
+          {{ isSubmitting(adminAppointmentActionSubmitKey()) ? '&#x63D0;&#x4EA4;&#x4E2D;' : adminAppointmentActionButtonText() }}
+        </button>
+      </footer>
+    </section>
+  </div>
+
+  <div
+    v-if="adminTicketReplyDialog.open"
+    class="modal-backdrop"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="ticket-accept-title"
+    @click.self="closeAdminTicketReplyDialog"
+  >
+    <section class="review-dialog">
+      <header class="review-dialog-header">
+        <div>
+          <p class="panel-eyebrow">&#x5DE5;&#x5355;&#x53D7;&#x7406;</p>
+          <h2 id="ticket-accept-title">{{ adminTicketReplyDialog.ticket ? adminTicketReplyDialog.ticket.title : '&#x5DE5;&#x5355;' }}</h2>
+        </div>
+        <span class="badge warning">{{ adminTicketReplyDialog.ticket ? ticketStatus(adminTicketReplyDialog.ticket.status) : '-' }}</span>
+      </header>
+      <div class="field" :class="{'has-error': adminTicketReplyErrors.remark}">
+        <label>&#x56DE;&#x590D;&#x5907;&#x6CE8; <span>&#x56DE;&#x590D;&#x65F6;&#x5FC5;&#x586B;</span></label>
+        <textarea v-model.trim="adminTicketReplyDialog.remark" maxlength="1024"></textarea>
+        <div class="field-footer">
+          <small v-if="adminTicketReplyErrors.remark" class="field-error">{{ adminTicketReplyErrors.remark }}</small>
+          <small class="field-counter">{{ adminTicketReplyDialog.remark.length }}/1024</small>
+        </div>
+      </div>
+      <div class="field" :class="{'has-error': adminTicketReplyErrors.attachment}">
+        <label>&#x56DE;&#x590D;&#x9644;&#x4EF6;</label>
+        <div class="file-control">
+          <input type="file" accept=".jpg,.jpeg,.png,.gif,.webp,.bmp,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.zip,.rar,.7z" :disabled="adminTicketReplyUploading || isSubmitting('ticket:' + adminTicketReplyDialog.ticket.id + ':reply')" @change="handleAdminTicketReplyFileChange">
+          <button v-if="adminTicketReplyDialog.attachmentName" class="button secondary" type="button" :disabled="adminTicketReplyUploading || isSubmitting('ticket:' + adminTicketReplyDialog.ticket.id + ':reply')" @click="clearAdminTicketReplyAttachment">&#x79FB;&#x9664;</button>
+        </div>
+        <small v-if="adminTicketReplyDialog.attachmentName" class="field-help">{{ adminTicketReplyUploading ? '&#x4E0A;&#x4F20;&#x4E2D;...' : adminTicketReplyDialog.attachmentName }}</small>
+        <small v-if="adminTicketReplyErrors.attachment" class="field-error">{{ adminTicketReplyErrors.attachment }}</small>
+      </div>
+      <label class="field checkbox-field">
+        <span>&#x9700;&#x8981;&#x5B66;&#x751F;&#x56DE;&#x590D;</span>
+        <input type="checkbox" v-model="adminTicketReplyDialog.needStudentReply">
+      </label>
+      <footer class="review-dialog-actions">
+        <button class="button secondary" type="button" :disabled="isSubmitting('ticket:' + adminTicketReplyDialog.ticket.id + ':accept') || isSubmitting('ticket:' + adminTicketReplyDialog.ticket.id + ':reply') || adminTicketReplyUploading" @click="closeAdminTicketReplyDialog">&#x53D6;&#x6D88;</button>
+        <button class="button secondary" type="button" :disabled="isSubmitting('ticket:' + adminTicketReplyDialog.ticket.id + ':accept') || adminTicketReplyUploading" @click="submitTicketProcessing">
+          {{ isSubmitting('ticket:' + adminTicketReplyDialog.ticket.id + ':accept') ? '&#x5904;&#x7406;&#x4E2D;' : '&#x5904;&#x7406;&#x4E2D;' }}
+        </button>
+        <button class="button" type="button" :disabled="isSubmitting('ticket:' + adminTicketReplyDialog.ticket.id + ':reply') || adminTicketReplyUploading" @click="submitTicketReply">
+          {{ isSubmitting('ticket:' + adminTicketReplyDialog.ticket.id + ':reply') ? '&#x56DE;&#x590D;&#x4E2D;' : '&#x56DE;&#x590D;' }}
+        </button>
+      </footer>
+    </section>
+  </div>
+
+  <div
+    v-if="deleteTicketTarget"
+    class="modal-backdrop"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="ticket-delete-title"
+    @click.self="closeDeleteTicket"
+  >
+    <section class="review-dialog">
+      <header class="review-dialog-header">
+        <div>
+          <p class="panel-eyebrow">&#x5220;&#x9664;&#x5DE5;&#x5355;</p>
+          <h2 id="ticket-delete-title">{{ deleteTicketTarget.title }}</h2>
+        </div>
+        <span class="badge danger-soft">&#x9700;&#x586B;&#x5199;&#x5907;&#x6CE8;</span>
+      </header>
+      <div class="field">
+        <label>&#x5220;&#x9664;&#x5907;&#x6CE8; <span>&#x5FC5;&#x586B;</span></label>
+        <textarea v-model.trim="deleteTicketRemark" maxlength="512"></textarea>
+        <small class="field-counter">{{ deleteTicketRemark.length }}/512</small>
+      </div>
+      <footer class="review-dialog-actions">
+        <button class="button secondary" type="button" :disabled="isSubmitting('ticket:' + deleteTicketTarget.id + ':delete')" @click="closeDeleteTicket">&#x53D6;&#x6D88;</button>
+        <button class="button danger" type="button" :disabled="isSubmitting('ticket:' + deleteTicketTarget.id + ':delete')" @click="submitDeleteTicket">
+          {{ isSubmitting('ticket:' + deleteTicketTarget.id + ':delete') ? '&#x5220;&#x9664;&#x4E2D;' : '&#x786E;&#x8BA4;&#x5220;&#x9664;' }}
+        </button>
+      </footer>
+    </section>
+  </div>
+
+  <div
+    v-if="reviewServicePoint"
+    class="modal-backdrop"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="service-point-review-title"
+    @click.self="closeServicePointReview"
+  >
+    <section class="review-dialog">
+      <header class="review-dialog-header">
+        <div>
+          <p class="panel-eyebrow">&#x670D;&#x52A1;&#x70B9;&#x5BA1;&#x6838;</p>
+          <h2 id="service-point-review-title">{{ reviewServicePoint.name || ('&#x670D;&#x52A1;&#x70B9; ' + reviewServicePoint.id) }}</h2>
+        </div>
+        <span class="badge warning">{{ servicePointStatus(reviewServicePoint.status) }}</span>
+      </header>
+      <dl class="review-detail-grid">
+        <div v-for="row in reviewServicePointRows(reviewServicePoint)" :key="row.label">
+          <dt>{{ row.label }}</dt>
+          <dd>{{ displayServicePointValue(row.value) }}</dd>
+        </div>
+      </dl>
+      <footer class="review-dialog-actions">
+        <button class="button secondary" type="button" :disabled="isSubmitting('servicePoint:' + reviewServicePoint.id + ':approve')" @click="closeServicePointReview">&#x53D6;&#x6D88;</button>
+        <button class="button" type="button" :disabled="isSubmitting('servicePoint:' + reviewServicePoint.id + ':approve')" @click="confirmApproveServicePoint">
+          {{ isSubmitting('servicePoint:' + reviewServicePoint.id + ':approve') ? '&#x5BA1;&#x6838;&#x4E2D;' : '&#x786E;&#x8BA4;&#x5BA1;&#x6838;' }}
+        </button>
+      </footer>
+    </section>
+  </div>
+
+  <div
+    v-if="editServicePointForm"
+    class="modal-backdrop"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="service-point-edit-title"
+    @click.self="closeEditServicePoint"
+  >
+    <section class="review-dialog">
+      <header class="review-dialog-header">
+        <div>
+          <p class="panel-eyebrow">&#x670D;&#x52A1;&#x70B9;&#x4FE1;&#x606F;</p>
+          <h2 id="service-point-edit-title">&#x4FEE;&#x6539;&#x670D;&#x52A1;&#x70B9;</h2>
+        </div>
+        <span class="badge warning">{{ servicePointStatus(editingServicePoint && editingServicePoint.status) }}</span>
+      </header>
+      <form @submit.prevent="submitEditServicePoint">
+        <div class="field-row">
+          <div class="field"><label>&#x540D;&#x79F0;</label><input v-model.trim="editServicePointForm.name"></div>
+          <div class="field"><label>&#x5206;&#x7C7B;&#x7F16;&#x53F7;</label><input v-model.number="editServicePointForm.categoryId" type="number"></div>
+        </div>
+        <div class="field-row">
+          <div class="field"><label>&#x7BA1;&#x7406;&#x5458;&#x7F16;&#x53F7;</label><input v-model.number="editServicePointForm.managerId" type="number"></div>
+          <div class="field"><label>&#x5F00;&#x653E;&#x65F6;&#x95F4;</label><input v-model.trim="editServicePointForm.openHours"></div>
+        </div>
+        <div class="field-row">
+          <div class="field"><label>&#x533A;&#x57DF;</label><input v-model.trim="editServicePointForm.area"></div>
+          <div class="field"><label>&#x7535;&#x8BDD;</label><input v-model.trim="editServicePointForm.phone"></div>
+        </div>
+        <div class="field"><label>&#x5730;&#x5740;</label><input v-model.trim="editServicePointForm.address"></div>
+        <div class="field"><label>&#x5C01;&#x9762;&#x56FE;</label><input v-model.trim="editServicePointForm.coverImage"></div>
+        <div class="field-row">
+          <div class="field"><label>&#x5750;&#x6807; X</label><input v-model.number="editServicePointForm.x" type="number" step="0.000001"></div>
+          <div class="field"><label>&#x5750;&#x6807; Y</label><input v-model.number="editServicePointForm.y" type="number" step="0.000001"></div>
+        </div>
+        <div class="field-row">
+          <div class="field"><label>&#x8BC4;&#x5206;</label><input v-model.number="editServicePointForm.score" type="number" min="0"></div>
+          <div class="field"><label>&#x670D;&#x52A1;&#x6B21;&#x6570;</label><input v-model.number="editServicePointForm.serviceCount" type="number" min="0"></div>
+        </div>
+        <div class="field"><label>&#x8BF4;&#x660E;</label><textarea v-model.trim="editServicePointForm.description"></textarea></div>
+        <footer class="review-dialog-actions">
+          <button class="button secondary" type="button" :disabled="isSubmitting('servicePoint:' + editServicePointForm.id + ':edit')" @click="closeEditServicePoint">&#x53D6;&#x6D88;</button>
+          <button class="button" type="submit" :disabled="isSubmitting('servicePoint:' + editServicePointForm.id + ':edit')">
+            {{ isSubmitting('servicePoint:' + editServicePointForm.id + ':edit') ? '&#x4FDD;&#x5B58;&#x4E2D;' : '&#x4FDD;&#x5B58;&#x4FEE;&#x6539;' }}
+          </button>
+        </footer>
+      </form>
+    </section>
+  </div>
+</div>
+
+<script src="/js/vendor/vue.js"></script>
+<script src="/js/vendor/axios.min.js"></script>
+<script src="./js/campus-common.js?v=20260703-appointment-delete"></script>
+<script src="./js/campus-components.js?v=20260705-ticket-detail-modal"></script>
+<script src="./js/campus-ui-config.js?v=20260701-inbox1"></script>
+<script src="./js/campus-state-mixin.js?v=20260629-cn2"></script>
+<script src="./js/campus-websocket.js?v=20260713-heartbeat-recovery"></script>
+<script src="./js/campus-app.js?v=20260722-ai-timeout-budget"></script>
+</body>
+</html>

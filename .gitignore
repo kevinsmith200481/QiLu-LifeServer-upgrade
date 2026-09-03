@@ -1,0 +1,56 @@
+# Local runtime artifacts. Keep standard .run/*.ps1 scripts and config files trackable.
+.run/*.log
+.run/*.pid
+.run/*.cp
+.run/*-otel.ps1
+.run/registry.properties
+.run/runner-pom.xml
+.run/m2/
+.run/m2-otel/
+.run/m2-acceptance/
+.run/acceptance-maven-settings.xml
+.run/acceptance/
+.run/mysql-data/
+.run/mysql-tmp/
+.run/campus-ticket-attachments/
+.run/redis-local/
+
+redis_front/logs/*.log
+redis_front/logs/*.pid
+logs/
+
+**/target/
+**/node_modules/
+**/__pycache__/
+*.pyc
+qilu-ai-agent/data/faiss/
+qilu-ai-agent/data/milvus/
+qilu-ai-agent/data/test-faiss/
+*.exe
+
+qilu-ai-agent/.env
+qilu-ai-agent/data/checkpoints/
+qilu-ai-agent/agent-*.log
+*.sqlite3-wal
+*.sqlite3-shm
+*.sqlite3.bak
+.env
+*.local
+!.env.example
+
+.jetbrains/ai.md
+_agent_source_500_ai_projects/
+
+.tmp/
+
+# Acceptance runs keep raw evidence locally. Only documentation and templates
+# under artifacts/acceptance are committed.
+artifacts/acceptance/*
+!artifacts/acceptance/README.md
+!artifacts/acceptance/phase0-baseline-summary.json
+!artifacts/acceptance/templates/
+!artifacts/acceptance/templates/**
+artifacts/redis-migration/
+
+# JVM fatal error logs may include local paths, process details, and environment data.
+hs_err_pid*.log

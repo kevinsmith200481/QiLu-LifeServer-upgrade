@@ -1,0 +1,14 @@
+{
+  "answer": "The current status must be queried from the live tool.",
+  "intent": "ticket_status",
+  "memoryDiagnostics": {
+    "mode": "legacy",
+    "schemaVersion": "2",
+    "recentTurnCount": 1,
+    "summaryVersion": 4,
+    "entityTypes": ["ticket"],
+    "resolutionSource": "not_evaluated",
+    "degraded": false,
+    "degradedReason": null
+  }
+}

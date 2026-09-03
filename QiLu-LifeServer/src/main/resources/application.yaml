@@ -1,0 +1,87 @@
+server:
+  port: 8081
+spring:
+  application:
+    name: qilu
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: ${QILU_MYSQL_URL:jdbc:mysql://localhost:3306/qilu?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true}
+    username: ${QILU_MYSQL_USERNAME:root}
+    password: ${QILU_MYSQL_PASSWORD}
+  jackson:
+    default-property-inclusion: non_null # JSON处理时忽略非空字段
+  servlet:
+    multipart:
+      max-file-size: 20MB
+      max-request-size: 21MB
+  redis:
+    host: ${QILU_REDIS_HOST}
+    port: ${QILU_REDIS_PORT}
+    password: ${QILU_REDIS_PASSWORD}
+    database: ${QILU_REDIS_DATABASE:0}
+    connect-timeout: ${QILU_REDIS_CONNECT_TIMEOUT:3s}
+    timeout: ${QILU_REDIS_TIMEOUT:3s}
+    lettuce:
+      pool:
+        max-active: 10
+        max-idle: 10
+        min-idle: 1
+        time-between-eviction-runs: 1s
+  rabbitmq:
+    host: ${QILU_RABBITMQ_HOST:localhost}
+    port: ${QILU_RABBITMQ_PORT:5672}
+    username: ${QILU_RABBITMQ_USERNAME}
+    password: ${QILU_RABBITMQ_PASSWORD}
+    virtual-host: ${QILU_RABBITMQ_VHOST:/}
+    publisher-confirm-type: correlated
+    publisher-returns: true
+    template:
+      mandatory: true
+
+qilu:
+  ai:
+    call:
+      # 覆盖语义分类最多三次、每次 15 秒的调用，以及 RPC 和持久化/清理开销。
+      http-total-timeout-ms: ${QILU_AI_HTTP_TOTAL_TIMEOUT_MS:55000}
+      rpc-timeout-ms: ${QILU_AI_RPC_TIMEOUT_MS:52000}
+      core-pool-size: ${QILU_AI_EXECUTOR_CORE_SIZE:4}
+      max-pool-size: ${QILU_AI_EXECUTOR_MAX_SIZE:8}
+      queue-capacity: ${QILU_AI_EXECUTOR_QUEUE_CAPACITY:32}
+    memory:
+      mode: ${AI_MEMORY_MODE:legacy}
+      schema-version: ${AI_MEMORY_SCHEMA_VERSION:2}
+      recent-turns: ${AI_MEMORY_RECENT_TURNS:8}
+      rebuild-turns: ${AI_MEMORY_REBUILD_TURNS:100}
+      max-input-tokens: ${AI_MEMORY_MAX_INPUT_TOKENS:3000}
+      max-turn-chars: ${AI_MEMORY_MAX_TURN_CHARS:1200}
+      summary-max-chars: ${AI_MEMORY_SUMMARY_MAX_CHARS:1000}
+      summary-trigger-turns: ${AI_MEMORY_SUMMARY_TRIGGER_TURNS:4}
+      summary-trigger-tokens: ${AI_MEMORY_SUMMARY_TRIGGER_TOKENS:1800}
+      summarizer-enabled: ${AI_MEMORY_SUMMARIZER_ENABLED:false}
+      summarizer-timeout-seconds: ${AI_MEMORY_SUMMARIZER_TIMEOUT_SECONDS:8}
+      summarizer-max-retries: ${AI_MEMORY_SUMMARIZER_MAX_RETRIES:1}
+      summarizer-threads: ${AI_MEMORY_SUMMARIZER_THREADS:1}
+      summarizer-queue-capacity: ${AI_MEMORY_SUMMARIZER_QUEUE_CAPACITY:32}
+  inbox:
+    outbox:
+      enabled: ${QILU_INBOX_OUTBOX_ENABLED:true}
+      batch-size: ${QILU_INBOX_OUTBOX_BATCH_SIZE:100}
+      lease-seconds: ${QILU_INBOX_OUTBOX_LEASE_SECONDS:30}
+      confirm-timeout-millis: ${QILU_INBOX_OUTBOX_CONFIRM_TIMEOUT_MS:5000}
+      max-publish-attempts: ${QILU_INBOX_OUTBOX_MAX_PUBLISH_ATTEMPTS:5}
+      max-delivery-attempts: ${QILU_INBOX_OUTBOX_MAX_DELIVERY_ATTEMPTS:5}
+      routing-key: ${QILU_INBOX_OUTBOX_ROUTING_KEY:inbox.delivery}
+
+
+mybatis-plus:
+  configuration:
+    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+  type-aliases-package: com.qilu.entity # 别名扫描包
+  # SIMPLE returns the real affected-row count immediately. Appointment quota
+  # consistency must never depend on BatchExecutor placeholder return values.
+  executor-type: simple
+logging:
+  level:
+    com.qilu: DEBUG
+    org.springframework.jdbc: DEBUG  # 打印JDBC操作日志
+    com.baomidou.mybatis plus: DEBUG

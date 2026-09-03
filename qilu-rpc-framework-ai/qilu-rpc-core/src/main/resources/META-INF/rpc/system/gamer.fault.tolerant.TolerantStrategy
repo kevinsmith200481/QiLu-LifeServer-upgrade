@@ -1,0 +1,4 @@
+failBack=gamer.fault.tolerant.FailBackTolerantStrategy
+failFast=gamer.fault.tolerant.FailFastTolerantStrategy
+failOver=gamer.fault.tolerant.FailOverTolerantStrategy
+failSafe=gamer.fault.tolerant.FailSafeTolerantStrategy

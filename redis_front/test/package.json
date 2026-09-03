@@ -1,0 +1,11 @@
+{
+  "name": "qilu-campus-websocket-tests",
+  "private": true,
+  "scripts": {
+    "test:unit": "node --test --test-isolation=none campus-websocket.test.js campus-ai.test.js",
+    "test:browser": "node campus-websocket.playwright.mjs"
+  },
+  "devDependencies": {
+    "playwright-core": "^1.61.1"
+  }
+}

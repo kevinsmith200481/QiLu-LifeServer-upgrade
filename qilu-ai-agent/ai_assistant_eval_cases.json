@@ -1,0 +1,312 @@
+[
+  {
+    "name": "knowledge_source",
+    "type": "structured",
+    "question": "校园卡丢了怎么办",
+    "intent": "general",
+    "knowledgeSources": [{"type": "knowledge", "knowledgeId": 1, "title": "校园卡补办", "snippet": "携带学生证到校园卡中心补办。", "score": 0.82}],
+    "expect": {"sourceType": "knowledge", "fallbackReason": null}
+  },
+  {
+    "name": "repair_ticket_draft",
+    "type": "intent",
+    "question": "宿舍漏水",
+    "expect": {"intent": "repair", "draftType": "create_ticket_draft"}
+  },
+  {
+    "name": "appointment_query_draft",
+    "type": "structured",
+    "question": "我想预约打印服务的可用时段",
+    "intent": "service_point_slots",
+    "expect": {"draftType": "appointment_query_draft"}
+  },
+  {
+    "name": "ticket_business_source",
+    "type": "tool",
+    "question": "我的工单进度",
+    "intent": "ticket_status",
+    "toolName": "query_my_tickets",
+    "toolData": [{"id": 12, "title": "宿舍水龙头漏水", "statusText": "处理中", "createTime": "2026-07-05 10:20:00"}],
+    "expect": {"sourceType": "ticket", "cardType": "ticket"}
+  },
+  {
+    "name": "reply_ticket_draft",
+    "type": "structured",
+    "question": "我补充说明：晚上六点后在宿舍",
+    "intent": "ticket_status",
+    "tickets": [{"id": 12, "title": "宿舍水龙头漏水", "status": 2, "studentReplyRequired": 1}],
+    "liveToolData": {"id": 12, "title": "宿舍水龙头漏水", "status": 2, "studentReplyRequired": 1},
+    "expect": {"draftType": "reply_ticket_draft"}
+  },
+  {
+    "name": "appointment_business_source",
+    "type": "tool",
+    "question": "我取消过哪些预约",
+    "intent": "appointment_status",
+    "toolName": "query_my_appointments",
+    "toolData": [{"id": 9, "servicePointName": "打印服务点", "slotTitle": "上午", "statusText": "已取消", "startTime": "2026-07-05 09:00:00"}],
+    "expect": {"sourceType": "appointment", "cardType": "appointment"}
+  },
+  {
+    "name": "inbox_business_source",
+    "type": "tool",
+    "question": "我有几条未读通知",
+    "intent": "inbox_summary",
+    "toolName": "query_inbox_summary",
+    "toolData": {"unreadCount": 1, "latest": [{"messageId": 3, "title": "工单提醒", "readStatus": 0, "summary": "你的工单有新进展"}]},
+    "expect": {"sourceType": "inbox", "cardType": "inbox"}
+  },
+  {
+    "name": "comment_business_source",
+    "type": "tool",
+    "question": "服务点 1 有哪些评论",
+    "intent": "station_comments",
+    "toolName": "query_station_comments",
+    "toolData": [{"stationId": 1, "content": "处理很及时", "createTime": "2026-07-05 10:00:00"}],
+    "expect": {"sourceType": "service_point", "cardType": "service_point"}
+  },
+  {
+    "name": "admin_log_source",
+    "type": "tool",
+    "question": "最近后台操作日志",
+    "intent": "admin_operation_logs",
+    "toolName": "query_admin_operation_logs",
+    "toolData": [{"id": 1, "module": "工单", "operation": "受理", "createTime": "2026-07-05 10:00:00"}],
+    "expect": {"sourceType": "admin_log", "cardType": "admin_log"}
+  },
+  {
+    "name": "permission_denied",
+    "type": "permission",
+    "question": "查看别人 999 号工单",
+    "intent": "ticket_status",
+    "message": "No permission to query ticket",
+    "expect": {"fallbackReason": "PERMISSION_DENIED"}
+  },
+  {
+    "name": "low_source_fallback",
+    "type": "structured",
+    "question": "一个没有来源的问题",
+    "intent": "general",
+    "expect": {"fallbackReason": "NO_SOURCE"}
+  },
+  {
+    "name": "memory_ticket_followup",
+    "type": "memory",
+    "conversationId": "eval-memory-ticket",
+    "question": "刚才那个工单还要我补充什么",
+    "history": [
+      {
+        "question": "我的工单进度",
+        "answer": "你最近的工单是「宿舍水龙头漏水」，当前状态：处理中。该工单需要你补充回复。",
+        "intent": "ticket_status",
+        "businessCards": [{"type": "ticket", "id": 12, "title": "宿舍水龙头漏水", "status": 2, "studentReplyRequired": 1}]
+      }
+    ],
+    "liveToolData": {"id": 12, "title": "宿舍水龙头漏水", "status": 2, "studentReplyRequired": 1},
+    "expect": {"intent": "ticket_status", "draftType": "reply_ticket_draft"}
+  },
+  {
+    "name": "memory_appointment_query_draft",
+    "type": "memory",
+    "conversationId": "eval-memory-appointment",
+    "question": "帮我整理预约查询草稿",
+    "history": [
+      {
+        "question": "打印服务可用时段",
+        "answer": "打印服务点支持预约查询可用时段。",
+        "intent": "service_point_slots",
+        "businessCards": [{"type": "service_point", "id": 1, "name": "打印服务点", "categoryName": "打印服务", "address": "图书馆一楼", "openHours": "09:00-17:00", "description": "打印、复印和材料装订"}]
+      }
+    ],
+    "expect": {"draftType": "appointment_query_draft"}
+  },
+  {
+    "name": "rag_knowledge_hit",
+    "type": "rag",
+    "question": "校园卡补办材料",
+    "intent": "general",
+    "ragHits": [
+      {
+        "retriever": "milvus",
+        "score": 0.86,
+        "content": "校园卡补办需要携带学生证到校园卡中心办理。",
+        "metadata": {"knowledgeId": 21, "title": "校园卡补办", "category": "card"}
+      }
+    ],
+    "expect": {"sourceType": "knowledge", "fallbackReason": null}
+  },
+  {
+    "name": "rag_knowledge_not_synced",
+    "type": "rag",
+    "question": "校园卡丢了怎么办",
+    "intent": "general",
+    "knowledgeInitialized": false,
+    "expect": {"fallbackReason": "KNOWLEDGE_NOT_SYNCED"}
+  },
+  {
+    "name": "rag_low_milvus_filtered",
+    "type": "rag",
+    "question": "没有可靠来源的问题",
+    "intent": "general",
+    "ragThresholds": {"RAG_MIN_MILVUS_SCORE": "0.2"},
+    "ragHits": [
+      {
+        "retriever": "milvus",
+        "score": 0.05,
+        "content": "低分 Milvus 命中不应进入来源。",
+        "metadata": {"knowledgeId": 22, "title": "低分来源"}
+      }
+    ],
+    "expect": {"fallbackReason": "NO_SOURCE"}
+  },
+  {
+    "name": "rag_faiss_available",
+    "type": "rag",
+    "question": "打印服务在哪里",
+    "intent": "general",
+    "ragHits": [
+      {
+        "retriever": "faiss",
+        "score": 0.25,
+        "content": "图书馆一楼打印服务点支持自助打印。",
+        "metadata": {"knowledgeId": 23, "title": "打印服务"}
+      }
+    ],
+    "expect": {"sourceType": "knowledge", "sourceRetriever": "faiss", "fallbackReason": null}
+  },
+  {
+    "name": "rag_keyword_fallback",
+    "type": "rag",
+    "question": "快递取件码异常",
+    "intent": "general",
+    "ragHits": [
+      {
+        "retriever": "keyword",
+        "score": 2,
+        "content": "快递取件码异常可到校园快递站人工窗口处理。",
+        "metadata": {"knowledgeId": 24, "title": "快递异常"}
+      }
+    ],
+    "expect": {"sourceType": "knowledge", "sourceRetriever": "keyword", "fallbackReason": null}
+  },
+  {
+    "name": "rag_business_source_priority",
+    "type": "tool",
+    "question": "我的工单进度",
+    "intent": "ticket_status",
+    "knowledgeSources": [{"type": "knowledge", "knowledgeId": 25, "title": "工单说明", "snippet": "弱知识来源。", "score": 0.21, "source": "milvus"}],
+    "toolName": "query_my_tickets",
+    "toolData": [{"id": 12, "title": "宿舍水龙头漏水", "statusText": "处理中", "createTime": "2026-07-05 10:20:00"}],
+    "expect": {"firstSourceType": "ticket", "sourceType": "ticket", "cardType": "ticket", "fallbackReason": null}
+  },
+  {
+    "name": "intent_printing",
+    "type": "intent",
+    "question": "打印机在哪里",
+    "servicePoints": [{"id": 2, "name": "图书馆打印服务点", "categoryName": "打印服务", "address": "图书馆一楼", "openHours": "09:00-17:00", "description": "打印、复印和装订"}],
+    "expect": {"intent": "printing", "sourceType": "service_point"}
+  },
+  {
+    "name": "intent_express",
+    "type": "intent",
+    "question": "快递包裹怎么取",
+    "servicePoints": [{"id": 3, "name": "校园快递站", "categoryName": "快递服务", "address": "生活区东门", "openHours": "08:30-19:00", "description": "express parcel pickup"}],
+    "expect": {"intent": "express", "sourceType": "service_point"}
+  },
+  {
+    "name": "intent_consultation",
+    "type": "intent",
+    "question": "就业简历咨询",
+    "servicePoints": [{"id": 4, "name": "就业咨询中心", "categoryName": "咨询服务", "address": "大学生活动中心", "openHours": "09:00-18:00", "description": "career resume consultation"}],
+    "expect": {"intent": "consultation", "sourceType": "service_point"}
+  },
+  {
+    "name": "intent_inbox",
+    "type": "intent",
+    "question": "我有未读通知吗",
+    "expect": {"intent": "inbox_summary"}
+  },
+  {
+    "name": "intent_service_categories",
+    "type": "intent",
+    "question": "校园服务分类有哪些",
+    "expect": {"intent": "service_categories"}
+  },
+  {
+    "name": "intent_admin_failure_logs",
+    "type": "intent",
+    "question": "预约失败原因日志",
+    "expect": {"intent": "admin_appointment_failure_logs"}
+  },
+  {
+    "name": "tool_service_categories_source",
+    "type": "tool",
+    "question": "校园服务分类有哪些",
+    "intent": "service_categories",
+    "toolName": "query_service_categories",
+    "toolData": [{"id": 1, "name": "维修服务", "status": 1}],
+    "expect": {"sourceType": "service_category"}
+  },
+  {
+    "name": "tool_service_point_slots_source",
+    "type": "tool",
+    "question": "打印服务 2 可用时段",
+    "intent": "service_point_slots",
+    "toolName": "query_service_point_slots",
+    "toolData": [{"servicePointId": 2, "servicePointName": "图书馆打印服务点", "slotTitle": "上午", "startTime": "2026-07-08 09:00:00", "endTime": "2026-07-08 11:00:00"}],
+    "expect": {"sourceType": "service_point", "cardType": "service_point"}
+  },
+  {
+    "name": "tool_ticket_detail_source",
+    "type": "tool",
+    "question": "12 号工单详情",
+    "intent": "ticket_status",
+    "toolName": "query_ticket_detail",
+    "toolData": {"id": 12, "title": "宿舍水龙头漏水", "content": "晚上漏水明显", "statusText": "处理中"},
+    "expect": {"sourceType": "ticket", "cardType": "ticket"}
+  },
+  {
+    "name": "tool_appointment_detail_source",
+    "type": "tool",
+    "question": "9 号预约详情",
+    "intent": "appointment_status",
+    "toolName": "query_appointment_detail",
+    "toolData": {"id": 9, "servicePointName": "打印服务点", "slotTitle": "上午", "statusText": "已预约", "startTime": "2026-07-08 09:00:00"},
+    "expect": {"sourceType": "appointment", "cardType": "appointment"}
+  },
+  {
+    "name": "tool_admin_failure_log_source",
+    "type": "tool",
+    "question": "预约失败原因日志",
+    "intent": "admin_appointment_failure_logs",
+    "toolName": "query_admin_appointment_failure_logs",
+    "toolData": [{"id": 7, "failureType": "库存不足", "reason": "可预约余量不足", "createTime": "2026-07-08 09:00:00"}],
+    "expect": {"sourceType": "admin_log", "cardType": "admin_log"}
+  },
+  {
+    "name": "permission_appointment_denied",
+    "type": "permission",
+    "question": "查看别人 888 号预约",
+    "intent": "appointment_status",
+    "toolName": "query_appointment_detail",
+    "message": "PERMISSION_DENIED",
+    "expect": {"fallbackReason": "PERMISSION_DENIED", "sourcesEmpty": true, "businessCardsEmpty": true}
+  },
+  {
+    "name": "memory_last_business_context_ticket",
+    "type": "memory",
+    "conversationId": "eval-memory-context-ticket",
+    "question": "刚才那个工单还要补充吗",
+    "lastBusinessContext": {"lastTicket": {"type": "ticket", "id": 15, "title": "空调异响", "status": 2, "studentReplyRequired": 1}},
+    "liveToolData": {"id": 15, "title": "空调异响", "status": 2, "studentReplyRequired": 1},
+    "expect": {"intent": "ticket_status", "draftType": "reply_ticket_draft"}
+  },
+  {
+    "name": "memory_appointment_followup",
+    "type": "memory",
+    "conversationId": "eval-memory-context-appointment",
+    "question": "那个预约继续查一下",
+    "lastBusinessContext": {"lastAppointment": {"type": "appointment", "id": 9, "servicePointName": "打印服务点", "slotTitle": "上午", "statusText": "已预约"}},
+    "expect": {"intent": "appointment_status"}
+  }
+]

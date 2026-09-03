@@ -1,0 +1,96 @@
+{
+  "schemaVersion": 1,
+  "description": "阶段 A 关键词路由基线；expectedCurrent 用于冻结历史行为，expectedTarget 仅描述后续阶段目标。",
+  "currentPrimaryPath": [
+    "load_memory",
+    "retrieve",
+    "check_escalation",
+    "detect_intent",
+    "plan_tools",
+    "execute_tools",
+    "generate",
+    "finalize_response"
+  ],
+  "cases": [
+    {
+      "id": "A-APPOINTMENT-BUSINESS",
+      "group": "appointment",
+      "variant": "business",
+      "question": "我的预约记录发生了什么",
+      "expectedCurrent": {
+        "intent": "appointment_status",
+        "ragCalls": 0,
+        "toolCalls": 1,
+        "toolNames": ["query_my_appointments"],
+        "sourceTypes": ["appointment"]
+      },
+      "expectedTarget": {
+        "intent": "appointment_status",
+        "retrievalMode": "BUSINESS_ONLY",
+        "ragCalls": 0,
+        "toolCalls": 1,
+        "sourceTypes": ["appointment"]
+      }
+    },
+    {
+      "id": "A-APPOINTMENT-KNOWLEDGE",
+      "group": "appointment",
+      "variant": "knowledge",
+      "question": "预约需要准备什么材料？",
+      "expectedCurrent": {
+        "intent": "appointment_status",
+        "ragCalls": 0,
+        "toolCalls": 1,
+        "toolNames": ["query_my_appointments"],
+        "sourceTypes": ["appointment"]
+      },
+      "expectedTarget": {
+        "intent": "appointment_policy",
+        "retrievalMode": "RAG_ONLY",
+        "ragCalls": 1,
+        "toolCalls": 0,
+        "sourceTypes": ["knowledge"]
+      }
+    },
+    {
+      "id": "A-TICKET-BUSINESS",
+      "group": "ticket",
+      "variant": "business",
+      "question": "我的工单现在进度怎么样？",
+      "expectedCurrent": {
+        "intent": "ticket_status",
+        "ragCalls": 0,
+        "toolCalls": 1,
+        "toolNames": ["query_my_tickets"],
+        "sourceTypes": ["ticket"]
+      },
+      "expectedTarget": {
+        "intent": "ticket_status",
+        "retrievalMode": "BUSINESS_ONLY",
+        "ragCalls": 0,
+        "toolCalls": 1,
+        "sourceTypes": ["ticket"]
+      }
+    },
+    {
+      "id": "A-TICKET-KNOWLEDGE",
+      "group": "ticket",
+      "variant": "knowledge",
+      "question": "工单一般多久受理，需要补什么材料？",
+      "expectedCurrent": {
+        "intent": "ticket_status",
+        "ragCalls": 0,
+        "toolCalls": 1,
+        "toolNames": ["query_my_tickets"],
+        "sourceTypes": ["ticket"]
+      },
+      "expectedTarget": {
+        "intent": "ticket_policy",
+        "retrievalMode": "RAG_ONLY",
+        "ragCalls": 1,
+        "toolCalls": 0,
+        "sourceTypes": ["knowledge"]
+      }
+    }
+  ]
+}

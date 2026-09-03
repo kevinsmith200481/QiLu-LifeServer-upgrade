@@ -1,0 +1,4 @@
+jdk=gamer.serializer.JdkSerializer
+hessian=gamer.serializer.HessianSerializer
+json=gamer.serializer.JsonSerializer
+kryo=gamer.serializer.KryoSerializer

@@ -1,0 +1,3 @@
+etcd=gamer.registry.EtcdRegistry
+zookeeper=gamer.registry.ZooKeeperRegistry
+file=gamer.registry.FileRegistry

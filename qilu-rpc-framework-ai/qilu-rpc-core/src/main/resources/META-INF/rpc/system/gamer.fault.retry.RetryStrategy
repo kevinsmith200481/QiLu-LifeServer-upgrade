@@ -1,0 +1,2 @@
+no=gamer.fault.retry.NoRetryStrategy
+fixedInterval=gamer.fault.retry.FixedIntervalRetryStrategy

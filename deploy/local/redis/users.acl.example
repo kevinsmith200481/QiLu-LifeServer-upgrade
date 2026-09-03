@@ -1,0 +1,2 @@
+user default on >change-me ~* &* +@all
+user health on nopass ~* &* -@all +ping

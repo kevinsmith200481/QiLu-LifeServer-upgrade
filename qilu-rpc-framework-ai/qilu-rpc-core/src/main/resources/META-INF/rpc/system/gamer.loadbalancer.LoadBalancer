@@ -1,0 +1,3 @@
+roundRobin=gamer.loadbalancer.RoundRobinLoadBalancer
+random=gamer.loadbalancer.RandomLoadBalancer
+consistentHash=gamer.loadbalancer.ConsistentHashLoadBalancer

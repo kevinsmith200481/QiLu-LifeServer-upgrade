@@ -1,0 +1,46 @@
+{
+  "schemaVersion": 1,
+  "stage": "A",
+  "measurementConfig": {
+    "retrievalSamples": 200,
+    "retrievalWarmups": 20,
+    "syncDocumentCount": 100,
+    "topK": 3,
+    "embeddingProvider": "local",
+    "embeddingModel": "local-hash-v1",
+    "embeddingDimension": 384,
+    "milvusMode": "controlled-current-code-projection",
+    "retrievalP95MaximumFactor": 1.2,
+    "retrievalP95AbsoluteMaximumMs": 500,
+    "localSync100DocumentsMaximumMs": 500,
+    "externalSync100DocumentsMaximumMs": 45000
+  },
+  "fixtures": [
+    {
+      "id": "A-LONG-MIDDLE",
+      "knowledgeId": 870001,
+      "title": "合成长文中段规则",
+      "category": "stage-a-isolated",
+      "source": "ai_knowledge",
+      "prefix": "这是与问题无关的合成背景段落。",
+      "prefixRepeat": 75,
+      "answer": "midcode7319办理窗口是东塔二层七号窗。",
+      "suffix": "后续仍然是与问题无关的合成背景段落。",
+      "suffixRepeat": 35,
+      "query": "midcode7319 办理窗口"
+    },
+    {
+      "id": "A-LONG-TAIL",
+      "knowledgeId": 870002,
+      "title": "合成长文尾部规则",
+      "category": "stage-a-isolated",
+      "source": "ai_knowledge",
+      "prefix": "这是用于越过四千零九十六字符边界的合成填充内容。",
+      "prefixRepeat": 230,
+      "answer": "tailcode8426补办材料是蓝色回执与纸质编号单。",
+      "suffix": "尾部结束。",
+      "suffixRepeat": 3,
+      "query": "tailcode8426 补办材料"
+    }
+  ]
+}

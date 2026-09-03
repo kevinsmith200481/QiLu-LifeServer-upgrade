@@ -1,0 +1,38 @@
+{
+  "userId": 990001,
+  "role": "student",
+  "conversationId": "991001",
+  "turnId": "turn-contract-002",
+  "question": "check the previous ticket",
+  "history": [],
+  "memory": {
+    "mode": "legacy",
+    "schemaVersion": "2",
+    "conversationId": "991001",
+    "recentTurns": [
+      {
+        "turnId": "turn-contract-001",
+        "question": "show ticket 12",
+        "answer": "ticket found",
+        "intent": "ticket_status"
+      }
+    ],
+    "rollingSummary": "Previous topic: campus repair ticket.",
+    "entities": {
+      "tickets": [
+        {
+          "id": 12,
+          "lastSeenTurnId": "turn-contract-001",
+          "lastSeenMessageId": 9081
+        }
+      ],
+      "appointments": [],
+      "servicePoints": [],
+      "pendingActionDraft": null
+    },
+    "lastProcessedMessageId": 9081,
+    "summaryVersion": 4,
+    "truncated": false,
+    "estimatedTokens": 620
+  }
+}

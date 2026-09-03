@@ -1,0 +1,350 @@
+.table-wrap {
+  overflow-x: auto;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 560px;
+}
+
+th,
+td {
+  border-bottom: 1px solid var(--color-border);
+  padding: var(--space-3);
+  text-align: left;
+  vertical-align: top;
+}
+
+th {
+  color: var(--color-text-soft);
+  font-size: var(--font-xs);
+  background: var(--color-surface-soft);
+}
+
+tr.selected td {
+  background: var(--color-card-selected);
+}
+
+.chat-box {
+  display: grid;
+  gap: var(--space-3);
+  max-height: 480px;
+  overflow: auto;
+}
+
+.chat-message {
+  max-width: 78%;
+  border-radius: var(--radius-lg);
+  padding: var(--space-3) var(--space-4);
+  line-height: 1.6;
+  white-space: pre-wrap;
+}
+
+.chat-message p {
+  margin: 0;
+}
+
+.chat-message p + p,
+.chat-message p + .chat-heading,
+.chat-heading + p {
+  margin-top: var(--space-3);
+}
+
+.chat-heading {
+  display: block;
+  color: var(--color-text);
+  font-size: var(--font-md);
+}
+
+.chat-message.user {
+  justify-self: end;
+  background: var(--color-primary-soft);
+}
+
+.chat-message.assistant {
+  justify-self: start;
+  background: var(--color-success-soft);
+}
+
+.chat-message.error {
+  background: var(--color-danger-soft);
+  color: var(--color-error-text);
+}
+
+.chat-message.pending {
+  color: var(--color-muted);
+}
+
+.chat-message-actions,
+.ai-answer-meta,
+.ai-business-card footer,
+.ai-action-draft footer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  align-items: center;
+  margin-top: var(--space-3);
+}
+
+.ai-structured-block {
+  display: grid;
+  gap: var(--space-3);
+  margin-top: var(--space-3);
+  white-space: normal;
+}
+
+.ai-source-list,
+.ai-card-list,
+.ai-draft-list,
+.ai-detail-comments {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.ai-source-item {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+}
+
+.ai-source-item summary {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  cursor: pointer;
+  color: var(--color-text);
+}
+
+.ai-source-item summary span,
+.ai-business-card strong,
+.ai-action-draft strong {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.ai-source-item summary small,
+.ai-business-card small,
+.ai-action-draft small {
+  color: var(--color-muted);
+  white-space: nowrap;
+}
+
+.ai-source-item p {
+  margin: 0;
+  border-top: 1px solid var(--color-border);
+  padding: var(--space-3);
+  color: var(--color-text-soft);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.ai-business-card,
+.ai-action-draft {
+  display: grid;
+  gap: var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: var(--space-3);
+  background: var(--color-surface);
+}
+
+.ai-business-card header,
+.ai-action-draft header {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-3);
+  align-items: flex-start;
+}
+
+.ai-business-card header div,
+.ai-action-draft header div {
+  display: grid;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+.ai-business-card dl,
+.ai-action-draft dl {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-2);
+  margin: 0;
+}
+
+.ai-business-card dl div,
+.ai-action-draft dl div {
+  min-width: 0;
+}
+
+.ai-business-card dt,
+.ai-action-draft dt {
+  color: var(--color-muted);
+  font-size: var(--font-xs);
+}
+
+.ai-business-card dd,
+.ai-action-draft dd {
+  margin: var(--space-1) 0 0;
+  overflow-wrap: anywhere;
+}
+
+.ai-action-draft p {
+  margin: 0;
+  color: var(--color-text-soft);
+}
+
+.ai-detail-dialog {
+  width: min(840px, 100%);
+}
+
+.ai-detail-content,
+.ai-detail-comments {
+  margin-top: var(--space-3);
+}
+
+.ai-detail-comments h3 {
+  margin: 0;
+  font-size: var(--font-md);
+}
+
+.detail-json,
+pre {
+  overflow: auto;
+  border-radius: var(--radius-md);
+  padding: var(--space-4);
+  background: var(--color-code-bg);
+  color: var(--color-code-text);
+  line-height: 1.55;
+}
+
+.ticket-detail-view {
+  display: grid;
+  gap: var(--space-5);
+}
+
+.ticket-detail-embedded .ticket-detail-view {
+  gap: var(--space-4);
+}
+
+.ticket-detail-head {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-4);
+  align-items: flex-start;
+}
+
+.ticket-detail-head h3,
+.ticket-section h3 {
+  margin: 0;
+  font-size: var(--font-md);
+}
+
+.ticket-detail-head p,
+.ticket-guidance p,
+.ticket-section p {
+  margin: var(--space-2) 0 0;
+  color: var(--color-text-soft);
+  line-height: 1.7;
+}
+
+.ticket-detail-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-3);
+  margin: 0;
+}
+
+.ticket-detail-grid div,
+.ticket-guidance section,
+.ticket-comment-item {
+  min-width: 0;
+  border-radius: var(--radius-md);
+  padding: var(--space-3);
+  background: var(--color-surface-soft);
+}
+
+.ticket-detail-grid dt {
+  color: var(--color-muted);
+  font-size: var(--font-xs);
+}
+
+.ticket-detail-grid dd {
+  margin: var(--space-1) 0 0;
+  overflow-wrap: anywhere;
+}
+
+.attachment-button {
+  margin-top: var(--space-2);
+}
+
+.ticket-guidance {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-3);
+}
+
+.ticket-timeline {
+  display: grid;
+  gap: var(--space-3);
+  margin: var(--space-3) 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ticket-timeline li {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-3);
+  border-left: 3px solid var(--color-border);
+  padding: var(--space-2) 0 var(--space-2) var(--space-3);
+  color: var(--color-muted);
+}
+
+.ticket-timeline li.active {
+  border-left-color: var(--color-primary);
+  color: var(--color-text);
+}
+
+.ticket-comment-list {
+  display: grid;
+  gap: var(--space-3);
+  margin-top: var(--space-3);
+}
+
+.ticket-reply-form {
+  display: grid;
+  gap: var(--space-3);
+  margin: var(--space-3) 0;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: var(--space-3);
+  background: var(--color-surface-soft);
+}
+
+.ticket-reply-form .field {
+  margin-bottom: 0;
+}
+
+.ticket-reply-form .button {
+  justify-self: start;
+}
+
+.ticket-comment-item p {
+  margin: var(--space-2) 0;
+  color: var(--color-text-soft);
+  line-height: 1.7;
+}
+
+.ticket-comment-item small {
+  color: var(--color-muted);
+}
+
+@keyframes shimmer {
+  to { background-position: -220% 0; }
+}
+
+@keyframes pulse {
+  50% { opacity: 0.35; }
+}
